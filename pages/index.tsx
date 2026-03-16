@@ -56,9 +56,19 @@ export default function MapPage() {
 
   // Inicjalizacja mapy
   useEffect(() => {
-    if (!mapDivRef.current || mapRef.current) return
+    if (!mapDivRef.current) return
+    // Jeśli kontener ma już mapę (Fast Refresh / Strict Mode), usuń ją
+    if ((mapDivRef.current as any)._leaflet_id) {
+      mapRef.current?.remove()
+      mapRef.current = null
+    }
+
     import("leaflet").then((leaflet) => {
       L = leaflet.default
+      if (!mapDivRef.current) return
+      // Podwójne sprawdzenie po async import
+      if ((mapDivRef.current as any)._leaflet_id) return
+
       // Fix domyślnych ikon Leaflet
       delete (L.Icon.Default.prototype as any)._getIconUrl
       L.Icon.Default.mergeOptions({ iconUrl: "", shadowUrl: "" })
@@ -76,13 +86,18 @@ export default function MapPage() {
       }).addTo(map)
 
       // Morska mapa bazowa (opcja alternatywna)
-      const nautical = L.tileLayer(
+      L.tileLayer(
         "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
         { attribution: "© OpenSeaMap contributors", maxZoom: 18, opacity: 0.7 }
       ).addTo(map)
 
       mapRef.current = map
     })
+
+    return () => {
+      mapRef.current?.remove()
+      mapRef.current = null
+    }
   }, [])
 
   // Renderuj punkty gdy dane gotowe
