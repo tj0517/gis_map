@@ -98,9 +98,11 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
     const type   = row["TYPE"]   || "pUXO"
 
     // Normalizacja statusu
+    const statusLower = status?.toLowerCase() ?? ""
     let normalizedStatus = "pUXO"
-    if (status === "Inspected") normalizedStatus = "Inspected"
-    if (status === "Removed")   normalizedStatus = "Removed"
+    if (statusLower === "inspected")   normalizedStatus = "Inspected"
+    if (statusLower === "removed")     normalizedStatus = "Removed"
+    if (statusLower === "in progress") normalizedStatus = "In progress"
 
     features.push({
       type: "Feature",

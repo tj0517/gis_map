@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- Dive Vessel - In Progress status marker -->
+  <!-- Hull - flat-bottomed work vessel shape -->
+  <path d="M2,14 L4,9 L20,9 L22,14 Q12,18 2,14 Z" fill="white" stroke="black" stroke-width="1.2"/>
+  <!-- Superstructure / bridge -->
+  <rect x="8" y="5.5" width="8" height="3.5" rx="0.5" fill="white" stroke="black" stroke-width="1"/>
+  <!-- Bridge window -->
+  <rect x="10" y="6.5" width="4" height="1.8" rx="0.3" fill="black" stroke="none"/>
+  <!-- A-frame / crane structure (characteristic of dive support vessels) -->
+  <line x1="15" y1="9" x2="17.5" y2="4" stroke="black" stroke-width="1"/>
+  <line x1="19" y1="9" x2="17.5" y2="4" stroke="black" stroke-width="1"/>
+  <line x1="15.5" y1="6.5" x2="19" y2="6.5" stroke="black" stroke-width="0.8"/>
+  <!-- Dive umbilical / cable going down from hull -->
+  <path d="M12,14 Q11,17 12,19.5" fill="none" stroke="black" stroke-width="0.9" stroke-dasharray="1.2,1"/>
+  <!-- Diver symbol at bottom of umbilical -->
+  <circle cx="12" cy="21" r="1.5" fill="white" stroke="black" stroke-width="1"/>
+  <!-- In Progress indicator - animated-style arc (hourglass / activity mark) -->
+  <path d="M5,11.5 Q5.5,13 5,14.5" fill="none" stroke="black" stroke-width="0.9"/>
+  <!-- Waterline waves -->
+  <path d="M2,14.5 Q5,13.5 8,14.5 Q11,15.5 14,14.5 Q17,13.5 20,14.5" fill="none" stroke="black" stroke-width="0.7" stroke-linecap="round"/>
+</svg>

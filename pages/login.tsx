@@ -65,16 +65,7 @@ export default function LoginPage() {
         }}>
           {/* Logo / tytuł */}
           <div style={{ marginBottom: 32 }}>
-            <div style={{
-              width: 56, height: 56,
-              background: "#1F4E79",
-              borderRadius: 12,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 16px",
-              fontSize: 24,
-            }}>
-              🌊
-            </div>
+            <img src="/SeaClouds_kolo.png" width="120" style={{ marginBottom: 16 }} />
             <h1 style={{ color: "#fff", fontSize: 20, fontWeight: 500, margin: "0 0 6px" }}>
               UXO Phase 2 · WebGIS
             </h1>

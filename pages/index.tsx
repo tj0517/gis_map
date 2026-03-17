@@ -3,7 +3,7 @@ import { useRouter } from "next/router"
 import { useEffect, useRef, useState } from "react"
 import Head from "next/head"
 import type { GeoJSON, UXOFeature } from "./api/data"
-import { getMarkerStyle, markerSVG, LEGEND_ITEMS } from "../lib/symbology"
+import { getMarkerStyle, getMarkerIcon, markerSVG, LEGEND_ITEMS } from "../lib/symbology"
 
 // Leaflet ładowany tylko po stronie klienta
 let L: any = null
@@ -202,13 +202,15 @@ export default function MapPage() {
 
     features.forEach(feature => {
       const { east, north, status, type, id, sector, risk, depth, priority } = feature.properties
-      const style = getMarkerStyle(status, type)
-      const svgUrl = markerSVG(style, 22)
+      const customIcon = getMarkerIcon(status)
+      const iconUrl = customIcon ?? markerSVG(getMarkerStyle(status, type), 22)
+      const iconSize: [number, number] = customIcon ? [24, 24] : [22, 22]
+      const iconAnchor: [number, number] = customIcon ? [12, 12] : [11, 11]
 
       const icon = L.icon({
-        iconUrl: svgUrl,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
+        iconUrl,
+        iconSize,
+        iconAnchor,
         popupAnchor: [0, -14],
       })
 
@@ -249,7 +251,7 @@ export default function MapPage() {
         {/* ── TOPBAR ── */}
         <div style={styles.topbar}>
           <div style={styles.topbarLeft}>
-            <span style={styles.logo}>🌊</span>
+            <img src="/SeaClouds_kolo.png" style={{ width: 28, height: 28, marginRight: 10, borderRadius: 4 }} />
             <div>
               <div style={styles.topTitle}>UXO Phase 2 · WebGIS</div>
               <div style={styles.topSub}>SC2503 · SeaClouds sp. z o.o.</div>
@@ -285,7 +287,7 @@ export default function MapPage() {
             {/* Filtry */}
             <div style={styles.sideSection}>
               <div style={styles.sideLabel}>Status</div>
-              {["ALL", "pUXO", "Inspected", "Removed"].map(s => (
+              {["ALL", "pUXO", "In progress", "Inspected", "Removed"].map(s => (
                 <button
                   key={s}
                   onClick={() => setFilterStatus(s)}
@@ -318,10 +320,11 @@ export default function MapPage() {
                 Legenda {showLegend ? "▾" : "▸"}
               </div>
               {showLegend && LEGEND_ITEMS.map(item => {
-                const style = getMarkerStyle(item.status, item.type)
+                const customIcon = getMarkerIcon(item.status)
+                const iconUrl = customIcon ?? markerSVG(getMarkerStyle(item.status, item.type), 16)
                 return (
                   <div key={item.label} style={styles.legendItem}>
-                    <img src={markerSVG(style, 16)} width={16} height={16} alt=""/>
+                    <img src={iconUrl} width={16} height={16} alt=""/>
                     <span style={styles.legendLabel}>{item.label}</span>
                   </div>
                 )

@@ -18,6 +18,11 @@ const TYPE_COLORS: Record<string, { color: string; stroke: string }> = {
   Other:      { color: "#D4537E", stroke: "#72243E" },
 }
 
+export function getMarkerIcon(status: string): string | null {
+  if (status === "In progress") return "/DiveVessel_InProgress.svg"
+  return null
+}
+
 export function getMarkerStyle(status: string, type: string): MarkerStyle {
   if (status === "Removed") {
     return {
@@ -67,7 +72,8 @@ export function markerSVG(style: MarkerStyle, size = 20): string {
 
 // Legenda — unikalne kombinacje
 export const LEGEND_ITEMS = [
-  { status: "pUXO",      type: "",          label: "pUXO — niezweryfikowany" },
+  { status: "pUXO",        type: "",          label: "pUXO — niezweryfikowany" },
+  { status: "In progress", type: "",          label: "In progress — nurkowanie" },
   { status: "Inspected", type: "pUXO",      label: "Inspected · pUXO" },
   { status: "Inspected", type: "cUXO",      label: "Inspected · cUXO" },
   { status: "Inspected", type: "Cable/wire",label: "Inspected · Cable/wire" },
