@@ -54,9 +54,11 @@ export default function MapPage() {
     }
   }, [status])
 
-  // Inicjalizacja mapy
+  // Inicjalizacja mapy — zależy od status, bo div mapy renderuje się dopiero po zalogowaniu
   useEffect(() => {
+    if (status !== "authenticated") return
     if (!mapDivRef.current) return
+
     // Jeśli kontener ma już mapę (Fast Refresh / Strict Mode), usuń ją
     if ((mapDivRef.current as any)._leaflet_id) {
       mapRef.current?.remove()
@@ -98,7 +100,7 @@ export default function MapPage() {
       mapRef.current?.remove()
       mapRef.current = null
     }
-  }, [])
+  }, [status])
 
   // Renderuj punkty gdy dane gotowe
   useEffect(() => {
