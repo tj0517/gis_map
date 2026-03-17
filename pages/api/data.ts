@@ -4,10 +4,10 @@ import { authOptions } from "./auth/[...nextauth]"
 import * as XLSX from "xlsx"
 import proj4 from "proj4"
 
-// UTM Zone 33N (EPSG:32633) → WGS84 (EPSG:4326)
-proj4.defs("EPSG:32633", "+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs")
-const utmToWgs84 = (east: number, north: number): [number, number] => {
-  const [lng, lat] = proj4("EPSG:32633", "EPSG:4326", [east, north])
+// EPSG:2180 (Poland CS2000 zone 6) → WGS84 (EPSG:4326)
+proj4.defs("EPSG:2180", "+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+const toWgs84 = (east: number, north: number): [number, number] => {
+  const [lng, lat] = proj4("EPSG:2180", "EPSG:4326", [east, north])
   return [lng, lat]
 }
 
@@ -92,7 +92,7 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
     if (isNaN(eastRaw) || isNaN(northRaw)) continue
 
     // Konwersja UTM Zone 33N → WGS84 (lat/lng)
-    const [lng, lat] = utmToWgs84(eastRaw, northRaw)
+    const [lng, lat] = toWgs84(eastRaw, northRaw)
 
     const status = row["STATUS"] || null
     const type   = row["TYPE"]   || "pUXO"
