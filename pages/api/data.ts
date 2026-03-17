@@ -2,6 +2,14 @@ import { NextApiRequest, NextApiResponse } from "next"
 import { getServerSession } from "next-auth"
 import { authOptions } from "./auth/[...nextauth]"
 import * as XLSX from "xlsx"
+import proj4 from "proj4"
+
+// UTM Zone 33N (EPSG:32633) → WGS84 (EPSG:4326)
+proj4.defs("EPSG:32633", "+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs")
+const utmToWgs84 = (east: number, north: number): [number, number] => {
+  const [lng, lat] = proj4("EPSG:32633", "EPSG:4326", [east, north])
+  return [lng, lat]
+}
 
 // Typy danych
 export interface UXOFeature {
@@ -77,11 +85,14 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
   const features: UXOFeature[] = []
 
   for (const row of rows) {
-    const east  = parseFloat(row["EAST"])
-    const north = parseFloat(row["NORTH"])
+    const eastRaw  = parseFloat(row["EAST"])
+    const northRaw = parseFloat(row["NORTH"])
 
     // Pomiń wiersze bez współrzędnych
-    if (isNaN(east) || isNaN(north)) continue
+    if (isNaN(eastRaw) || isNaN(northRaw)) continue
+
+    // Konwersja UTM Zone 33N → WGS84 (lat/lng)
+    const [lng, lat] = utmToWgs84(eastRaw, northRaw)
 
     const status = row["STATUS"] || null
     const type   = row["TYPE"]   || "pUXO"
@@ -95,7 +106,7 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
       type: "Feature",
       geometry: {
         type: "Point",
-        coordinates: [east, north],
+        coordinates: [lng, lat],
       },
       properties: {
         no:            row["No."]        ?? 0,
@@ -108,8 +119,8 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
         amplitude:     row["AMPLITUDE"]  ?? 0,
         altitude:      row["ALTITUDE\n(m)"] ?? row["ALTITUDE"] ?? 0,
         depth:         row["DEPTH\n(m)"]    ?? row["DEPTH"]    ?? 0,
-        east,
-        north,
+        east:          lng,
+        north:         lat,
         idMag:         String(row["ID_MAG"] ?? ""),
         dateInspected: row["DATE\nINSPECTED"] ?? row["DATE INSPECTED"] ?? null,
         type,
