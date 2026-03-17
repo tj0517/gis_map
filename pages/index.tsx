@@ -22,6 +22,12 @@ export default function MapPage() {
   const [filterSector, setFilterSector] = useState("ALL")
   const [showLegend, setShowLegend]   = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [showGeo3, setShowGeo3]             = useState(true)
+  const [showSectors, setShowSectors]       = useState(true)
+  const [showCorridor, setShowCorridor]     = useState(true)
+  const layerGeo3Ref      = useRef<any>(null)
+  const layerSectorsRef   = useRef<any>(null)
+  const layerCorridorRef  = useRef<any>(null)
 
   // Redirect jeśli nie zalogowany
   useEffect(() => {
@@ -102,6 +108,83 @@ export default function MapPage() {
     }
   }, [status])
 
+  // Załaduj warstwy GeoJSON
+  useEffect(() => {
+    if (status !== "authenticated") return
+    // Poczekaj na inicjalizację mapy
+    const init = () => {
+      if (!mapRef.current || !L) { setTimeout(init, 200); return }
+
+      // GEO3_Area
+      fetch("/layers/GEO3_Area.geojson")
+        .then(r => r.json())
+        .then(data => {
+          if (!mapRef.current) return
+          const layer = L.geoJSON(data, {
+            filter: (f: any) => f.properties?.Layer === "zakres obszaru GEO3 - część morska",
+            style: { fill: false, color: "#666", weight: 1, opacity: 0.6 },
+          })
+          layerGeo3Ref.current = layer
+          if (showGeo3) layer.addTo(mapRef.current)
+        })
+        .catch(() => {/* plik jeszcze nie istnieje */})
+
+      // UXO_Sectors
+      fetch("/layers/UXO_Sectors.geojson")
+        .then(r => r.json())
+        .then(data => {
+          if (!mapRef.current) return
+          const layer = L.geoJSON(data, {
+            style: { fillColor: "#4A90D9", fillOpacity: 0.15, color: "#2E6FA3", weight: 1.5 },
+            onEachFeature: (feature: any, lyr: any) => {
+              const label = feature.properties?.nazwa
+              if (label) lyr.bindTooltip(String(label), { permanent: true, direction: "center", className: "geojson-label" })
+            },
+          })
+          layerSectorsRef.current = layer
+          if (showSectors) layer.addTo(mapRef.current)
+        })
+        .catch(() => {})
+
+      // Clearance_Corridor
+      fetch("/layers/Clearance_Corridor.geojson")
+        .then(r => r.json())
+        .then(data => {
+          if (!mapRef.current) return
+          const layer = L.geoJSON(data, {
+            style: { fill: false, color: "#E8871E", weight: 2, dashArray: "6,4" },
+            onEachFeature: (feature: any, lyr: any) => {
+              const label = feature.properties?.Location
+              if (label) lyr.bindTooltip(String(label), { permanent: true, direction: "center", className: "geojson-label" })
+            },
+          })
+          layerCorridorRef.current = layer
+          if (showCorridor) layer.addTo(mapRef.current)
+        })
+        .catch(() => {})
+    }
+    init()
+  }, [status])
+
+  // Przełączanie widoczności warstw
+  useEffect(() => {
+    if (!mapRef.current || !layerGeo3Ref.current) return
+    if (showGeo3) layerGeo3Ref.current.addTo(mapRef.current)
+    else mapRef.current.removeLayer(layerGeo3Ref.current)
+  }, [showGeo3])
+
+  useEffect(() => {
+    if (!mapRef.current || !layerSectorsRef.current) return
+    if (showSectors) layerSectorsRef.current.addTo(mapRef.current)
+    else mapRef.current.removeLayer(layerSectorsRef.current)
+  }, [showSectors])
+
+  useEffect(() => {
+    if (!mapRef.current || !layerCorridorRef.current) return
+    if (showCorridor) layerCorridorRef.current.addTo(mapRef.current)
+    else mapRef.current.removeLayer(layerCorridorRef.current)
+  }, [showCorridor])
+
   // Renderuj punkty gdy dane gotowe
   useEffect(() => {
     if (!mapRef.current || !geojson || !L) return
@@ -158,6 +241,7 @@ export default function MapPage() {
       <Head>
         <title>UXO WebGIS · SC2503 · SeaClouds</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        <style>{`.geojson-label { background: rgba(15,25,35,0.75); border: none; box-shadow: none; color: #a0b4c4; font-size: 11px; padding: 2px 5px; white-space: nowrap; }`}</style>
       </Head>
 
       <div style={styles.layout}>
@@ -242,6 +326,26 @@ export default function MapPage() {
                   </div>
                 )
               })}
+            </div>
+
+            {/* Warstwy */}
+            <div style={styles.sideSection}>
+              <div style={styles.sideLabel}>Warstwy</div>
+              {([
+                { label: "GEO3 Area",          checked: showGeo3,     set: setShowGeo3,     color: "#666" },
+                { label: "UXO Sectors",        checked: showSectors,  set: setShowSectors,  color: "#2E6FA3" },
+                { label: "Clearance Corridor", checked: showCorridor, set: setShowCorridor, color: "#E8871E" },
+              ] as const).map(({ label, checked, set, color }) => (
+                <label key={label} style={styles.layerToggle}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={e => set(e.target.checked)}
+                    style={{ accentColor: color, marginRight: 6 }}
+                  />
+                  <span style={{ ...styles.legendLabel, color: checked ? "#a0b4c4" : "#4a6070" }}>{label}</span>
+                </label>
+              ))}
             </div>
 
             {/* Ostatnie odświeżenie */}
@@ -390,4 +494,5 @@ const styles: Record<string, any> = {
   detailRowValue: { fontSize: 12, color: "#a0b4c4", fontWeight: 500 },
   comment:        { marginTop: 16 },
   commentText:    { fontSize: 12, color: "#6b8099", lineHeight: 1.5, marginTop: 4 },
+  layerToggle:    { display: "flex", alignItems: "center", cursor: "pointer", padding: "3px 0" },
 }
