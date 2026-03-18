@@ -4,6 +4,45 @@ import { authOptions } from "./auth/[...nextauth]"
 import * as XLSX from "xlsx"
 import proj4 from "proj4"
 
+// App-only token cache
+let cachedToken: { token: string; expiresAt: number } | null = null
+
+async function getAppToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
+    return cachedToken.token
+  }
+
+  const tenantId    = process.env.AZURE_AD_TENANT_ID!
+  const clientId    = process.env.AZURE_AD_CLIENT_ID!
+  const clientSecret = process.env.AZURE_AD_CLIENT_SECRET!
+
+  const res = await fetch(
+    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type:    "client_credentials",
+        client_id:     clientId,
+        client_secret: clientSecret,
+        scope:         "https://graph.microsoft.com/.default",
+      }),
+    }
+  )
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Token request failed: ${res.status} ${err}`)
+  }
+
+  const json = await res.json()
+  cachedToken = {
+    token:     json.access_token,
+    expiresAt: Date.now() + json.expires_in * 1000,
+  }
+  return cachedToken.token
+}
+
 // EPSG:2180 (Poland CS2000 zone 6) → WGS84 (EPSG:4326)
 proj4.defs("EPSG:2180", "+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 const toWgs84 = (east: number, north: number): [number, number] => {
@@ -163,14 +202,15 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Sprawdź sesję
+  // Sprawdź sesję — użytkownik musi być zalogowany
   const session = await getServerSession(req, res, authOptions)
-  if (!session || !session.accessToken) {
+  if (!session) {
     return res.status(401).json({ error: "Unauthorized" })
   }
 
   try {
-    const buffer  = await fetchExcelFromOneDrive(session.accessToken)
+    const appToken = await getAppToken()
+    const buffer   = await fetchExcelFromOneDrive(appToken)
     const geojson = parseExcelToGeoJSON(buffer)
 
     // Cache 5 minut po stronie przeglądarki
