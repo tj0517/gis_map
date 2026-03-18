@@ -82,8 +82,8 @@ export default function MapPage() {
       L.Icon.Default.mergeOptions({ iconUrl: "", shadowUrl: "" })
 
       const map = L.map(mapDivRef.current!, {
-        center: [56.0, 14.5], // Bałtyk — dostosuj do projektu
-        zoom: 10,
+        center: [54.84, 17.79],
+        zoom: 13,
         zoomControl: true,
       })
 
@@ -200,28 +200,27 @@ export default function MapPage() {
       return true
     })
 
-    features.forEach(feature => {
-      const { east, north, status, type, id, sector, risk, depth, priority } = feature.properties
+    const addMarker = (feature: UXOFeature) => {
+      const { east, north, status, type, id } = feature.properties
       const customIcon = getMarkerIcon(status)
       const iconUrl = customIcon ?? markerSVG(getMarkerStyle(status, type), 22)
-      const iconSize: [number, number] = customIcon ? [24, 24] : [22, 22]
-      const iconAnchor: [number, number] = customIcon ? [12, 12] : [11, 11]
+      const iconSize: [number, number] = customIcon ? [48, 48] : [22, 22]
+      const iconAnchor: [number, number] = customIcon ? [24, 24] : [11, 11]
 
-      const icon = L.icon({
-        iconUrl,
-        iconSize,
-        iconAnchor,
-        popupAnchor: [0, -14],
+      const icon = L.icon({ iconUrl, iconSize, iconAnchor, popupAnchor: [0, -14] })
+      const marker = L.marker([north, east], {
+        icon,
+        zIndexOffset: customIcon ? 1000 : 0,
       })
-
-      // UWAGA: Leaflet używa [lat, lng] — tutaj [NORTH, EAST]
-      const marker = L.marker([north, east], { icon })
       marker._uxoMarker = true
-
       marker.on("click", () => setSelected(feature))
       marker.bindTooltip(id, { permanent: false, direction: "top", offset: [0, -12] })
       marker.addTo(mapRef.current)
-    })
+    }
+
+    // Add non-"In progress" markers first, then "In progress" on top
+    features.filter(f => f.properties.status !== "In progress").forEach(addMarker)
+    features.filter(f => f.properties.status === "In progress").forEach(addMarker)
 
     // Dopasuj widok do punktów przy pierwszym ładowaniu
     if (features.length > 0 && !selected) {

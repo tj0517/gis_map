@@ -79,6 +79,10 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
 
   if (!sheet) throw new Error("Arkusz DETAIL nie został znaleziony")
 
+  // Debug: print exact column headers
+  const headers = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })[0]
+  console.log("[DEBUG] DETAIL sheet headers:", JSON.stringify(headers))
+
   // header: 0 — wiersz tytułowy usunięty, nagłówki w wierszu 1
   const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 0, defval: null })
 
@@ -124,7 +128,16 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
         east:          lng,
         north:         lat,
         idMag:         String(row["ID_MAG"] ?? ""),
-        dateInspected: row["DATE\nINSPECTED"] ?? row["DATE INSPECTED"] ?? null,
+        dateInspected: (() => {
+          const raw = row["DATE\nINSPECTED"] ?? row["DATE INSPECTED"] ?? null
+          if (!raw) return null
+          const serial = typeof raw === "number" ? raw : parseFloat(raw)
+          if (!isNaN(serial) && serial > 1000) {
+            return new Date((serial - 25569) * 86400 * 1000)
+              .toLocaleDateString("pl-PL", { day: "2-digit", month: "short", year: "numeric" })
+          }
+          return String(raw)
+        })(),
         type,
         status:        normalizedStatus,
         comment:       row["COMMENT"]    ?? null,
