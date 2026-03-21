@@ -6,6 +6,12 @@ export type MarkerStyle = {
   label: string
 }
 
+const REMOVED_SVG = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">' +
+  '<rect x="2" y="2" width="16" height="16" fill="#639922" stroke="#27500A" stroke-width="1.5"/>' +
+  '</svg>'
+)}`
+
 const ICONS: Record<string, MarkerStyle> = {
   "pUXO":                    { iconUrl: "/IOGP1030.svg",        size: 20, label: "pUXO — niezweryfikowany" },
   "Inspected|pUXO":          { iconUrl: "/IOGP1030.svg",        size: 20, label: "Inspected · pUXO" },
@@ -15,7 +21,7 @@ const ICONS: Record<string, MarkerStyle> = {
   "Inspected|Wreck":         { iconUrl: "/IOGP1022.svg",        size: 20, label: "Inspected · Wreck" },
   "Inspected|Boulder":       { iconUrl: "/IOGP1007.svg",        size: 20, label: "Inspected · Boulder" },
   "Inspected|Other":         { iconUrl: "/IOGP1041.svg",        size: 20, label: "Inspected · Other" },
-  "Removed":                 { iconUrl: "/Removed_custom.svg",  size: 20, label: "Removed" },
+  "Removed":                 { iconUrl: REMOVED_SVG,            size: 20, label: "Removed" },
   "In progress":             { iconUrl: "/Vessel.svg",          size: 48, label: "In progress — nurkowanie" },
 }
 
