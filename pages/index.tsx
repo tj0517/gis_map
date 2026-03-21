@@ -28,6 +28,7 @@ export default function MapPage() {
   const layerGeo3Ref      = useRef<any>(null)
   const layerSectorsRef   = useRef<any>(null)
   const layerCorridorRef  = useRef<any>(null)
+  const [mapReady, setMapReady] = useState(false)
 
   // Redirect jeśli nie zalogowany
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function MapPage() {
       ).addTo(map)
 
       mapRef.current = map
+      setMapReady(true)
     })
 
     return () => {
@@ -187,7 +189,7 @@ export default function MapPage() {
 
   // Renderuj punkty gdy dane gotowe
   useEffect(() => {
-    if (!mapRef.current || !geojson || !L) return
+    if (!mapRef.current || !geojson || !L || !mapReady) return
 
     // Usuń poprzednie warstwy UXO
     mapRef.current.eachLayer((layer: any) => {
@@ -227,7 +229,7 @@ export default function MapPage() {
       const coords = features.map(f => [f.properties.north, f.properties.east] as [number, number])
       mapRef.current.fitBounds(coords, { padding: [40, 40] })
     }
-  }, [geojson, filterStatus, filterSector])
+  }, [geojson, filterStatus, filterSector, mapReady])
 
   if (status === "loading" || status === "unauthenticated") {
     return <div style={styles.fullscreen}><div style={styles.spinner}/></div>
