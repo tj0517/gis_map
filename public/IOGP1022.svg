@@ -1,0 +1,20 @@
+<?xml version="1.0" standalone="no"?>
+<svg viewBox="-100 -100 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd" xml:space="preserve" >
+
+<g fill="none" stroke="rgb(0,0,0)" stroke-width="4" />
+<g fill="none" stroke="rgb(255,0,0)" stroke-width="4" >
+<polyline points="78.400,65.814 -77.549,3.518" />
+<polyline points="-77.549,3.518 -64.447,65.814" />
+<polyline points="-64.447,65.814 78.400,65.814" />
+<polyline points="46.106,-65.814 1.006,34.898" />
+</g>
+<g fill="none" stroke="rgb(255,0,0)" stroke-width="4" >
+<polyline points="0.209,18.937 0.209,18.937" />
+</g>
+<g fill="rgb(255,0,0)" stroke="rgb(255,0,0)" stroke-width="4" >
+<polygon points="78.400,65.814 -77.549,3.518 -64.447,65.814" />
+</g>
+<g fill="none" stroke="rgb(255,0,0)" stroke-width="4" >
+<polyline points="-90.000,65.814 90.000,65.814" />
+</g>
+</svg>

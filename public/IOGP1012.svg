@@ -1,0 +1,12 @@
+<?xml version="1.0" standalone="no"?>
+<svg viewBox="-100 -100 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd" xml:space="preserve" >
+
+<g fill="none" stroke="rgb(0,0,0)" stroke-width="4" >
+<polyline points="0.000,0.000 0.000,0.000" />
+</g>
+<g fill="none" stroke="rgb(0,0,0)" stroke-width="4" >
+<circle cx="-62.203" cy="0.000" r="27.797" />
+<polyline points="-34.406,0.000 34.405,0.000" />
+<circle cx="62.203" cy="0.000" r="27.797" />
+</g>
+</svg>

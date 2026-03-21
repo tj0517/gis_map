@@ -3,7 +3,7 @@ import { useRouter } from "next/router"
 import { useEffect, useRef, useState } from "react"
 import Head from "next/head"
 import type { GeoJSON, UXOFeature } from "./api/data"
-import { getMarkerStyle, getMarkerIcon, markerSVG, LEGEND_ITEMS } from "../lib/symbology"
+import { getMarkerStyle, LEGEND_ITEMS } from "../lib/symbology"
 
 // Leaflet ładowany tylko po stronie klienta
 let L: any = null
@@ -202,15 +202,15 @@ export default function MapPage() {
 
     const addMarker = (feature: UXOFeature) => {
       const { east, north, status, type, id } = feature.properties
-      const customIcon = getMarkerIcon(status)
-      const iconUrl = customIcon ?? markerSVG(getMarkerStyle(status, type), 22)
-      const iconSize: [number, number] = customIcon ? [48, 48] : [22, 22]
-      const iconAnchor: [number, number] = customIcon ? [24, 24] : [11, 11]
+      const markerStyle = getMarkerStyle(status, type)
+      const { iconUrl, size } = markerStyle
+      const iconSize: [number, number] = [size, size]
+      const iconAnchor: [number, number] = [size / 2, size / 2]
 
-      const icon = L.icon({ iconUrl, iconSize, iconAnchor, popupAnchor: [0, -14] })
+      const icon = L.icon({ iconUrl, iconSize, iconAnchor, popupAnchor: [0, -size / 2 - 2] })
       const marker = L.marker([north, east], {
         icon,
-        zIndexOffset: customIcon ? 1000 : 0,
+        zIndexOffset: status === "In progress" ? 1000 : 0,
       })
       marker._uxoMarker = true
       marker.on("click", () => setSelected(feature))
@@ -319,8 +319,7 @@ export default function MapPage() {
                 Legenda {showLegend ? "▾" : "▸"}
               </div>
               {showLegend && LEGEND_ITEMS.map(item => {
-                const customIcon = getMarkerIcon(item.status)
-                const iconUrl = customIcon ?? markerSVG(getMarkerStyle(item.status, item.type), 16)
+                const { iconUrl } = getMarkerStyle(item.status, item.type)
                 return (
                   <div key={item.label} style={styles.legendItem}>
                     <img src={iconUrl} width={16} height={16} alt=""/>
