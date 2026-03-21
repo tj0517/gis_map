@@ -324,7 +324,9 @@ export default function MapPage() {
                 const { iconUrl } = getMarkerStyle(item.status, item.type)
                 return (
                   <div key={item.label} style={styles.legendItem}>
-                    <img src={iconUrl} width={16} height={16} alt=""/>
+                    <div style={{ width: 24, height: 24, background: "#d0e8f5", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <img src={iconUrl} width={18} height={18} alt=""/>
+                    </div>
                     <span style={styles.legendLabel}>{item.label}</span>
                   </div>
                 )
@@ -464,14 +466,14 @@ const styles: Record<string, any> = {
   userEmail:      { color: "#4a6070", fontSize: 12 },
   signoutBtn:     { background: "none", border: "1px solid #2a3a4a", borderRadius: 6, color: "#6b8099", fontSize: 12, cursor: "pointer", padding: "4px 10px" },
   main:           { display: "flex", flex: 1, overflow: "hidden" },
-  sidebar:        { width: 220, background: "#0f1923", borderRight: "1px solid #1e2f3e", padding: 16, overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column", gap: 20 },
+  sidebar:        { width: 220, background: "#0d1f2d", borderRight: "1px solid #1e3448", padding: 16, overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column", gap: 20 },
   sideSection:    { display: "flex", flexDirection: "column", gap: 6 },
-  sideLabel:      { fontSize: 10, fontWeight: 500, color: "#4a6070", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 },
+  sideLabel:      { fontSize: 10, fontWeight: 500, color: "#6b9ab8", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 },
   filterBtn:      { background: "none", border: "1px solid #2a3a4a", borderRadius: 6, color: "#6b8099", fontSize: 12, cursor: "pointer", padding: "6px 10px", textAlign: "left" as const },
   filterBtnActive:{ background: "#1F4E79", border: "1px solid #378ADD", color: "#fff" },
   select:         { background: "#1a2632", border: "1px solid #2a3a4a", borderRadius: 6, color: "#a0b4c4", fontSize: 12, padding: "6px 8px" },
-  legendItem:     { display: "flex", alignItems: "center", gap: 8, padding: "3px 0" },
-  legendLabel:    { fontSize: 11, color: "#6b8099" },
+  legendItem:     { display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", borderRadius: 4, background: "#0f2740" },
+  legendLabel:    { fontSize: 11, color: "#c8dae8" },
   refreshInfo:    { fontSize: 11, color: "#2a3a4a", marginTop: "auto" },
   mapArea:        { flex: 1, position: "relative" as const },
   map:            { width: "100%", height: "100%" },
@@ -497,5 +499,5 @@ const styles: Record<string, any> = {
   detailRowValue: { fontSize: 12, color: "#a0b4c4", fontWeight: 500 },
   comment:        { marginTop: 16 },
   commentText:    { fontSize: 12, color: "#6b8099", lineHeight: 1.5, marginTop: 4 },
-  layerToggle:    { display: "flex", alignItems: "center", cursor: "pointer", padding: "3px 0" },
+  layerToggle:    { display: "flex", alignItems: "center", cursor: "pointer", padding: "4px 6px", borderRadius: 4, background: "#0f2740" },
 }
