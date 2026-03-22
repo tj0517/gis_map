@@ -283,7 +283,16 @@ export default function MapPage() {
         zIndexOffset: status === "In progress" ? 1000 : 0,
       })
       marker._uxoMarker = true
-      marker.on("click", () => setSelected(feature))
+      marker.on("click", (e: any) => {
+        if (measureActive) {
+          L.DomEvent.stopPropagation(e)
+          const { lat, lng } = e.latlng
+          measurePointsRef.current.push([lat, lng])
+          mapRef.current.fire("click", { latlng: e.latlng })
+        } else {
+          setSelected(feature)
+        }
+      })
       marker.bindTooltip(id, { permanent: false, direction: "top", offset: [0, -12] })
       marker.addTo(mapRef.current)
     }
@@ -297,7 +306,7 @@ export default function MapPage() {
       const coords = features.map(f => [f.properties.north, f.properties.east] as [number, number])
       mapRef.current.fitBounds(coords, { padding: [40, 40] })
     }
-  }, [geojson, filterStatus, filterSector, mapReady])
+  }, [geojson, filterStatus, filterSector, mapReady, measureActive])
 
   if (status === "loading" || status === "unauthenticated") {
     return <div style={styles.fullscreen}><div style={styles.spinner}/></div>
