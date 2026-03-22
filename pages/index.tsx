@@ -295,69 +295,74 @@ export default function MapPage() {
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !L) return
-    if (!showVessels) {
-      wsRef.current?.close()
-      vesselsRef.current.forEach(m => mapRef.current.removeLayer(m))
-      vesselsRef.current.clear()
-      return
-    }
+    ;(async () => {
+      if (!showVessels) {
+        wsRef.current?.close()
+        vesselsRef.current.forEach(m => mapRef.current.removeLayer(m))
+        vesselsRef.current.clear()
+        return
+      }
 
-    const apiKey = process.env.NEXT_PUBLIC_AISSTREAM_KEY
-    if (!apiKey) return
+      const res = await fetch("/api/ais")
+      if (!res.ok) return
+      const { key: apiKey } = await res.json()
+      if (!apiKey) return
 
-    const ws = new WebSocket("wss://stream.aisstream.io/v0/stream")
-    wsRef.current = ws
+      const ws = new WebSocket("wss://stream.aisstream.io/v0/stream")
+      wsRef.current = ws
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({
-        APIKey: apiKey,
-        BoundingBoxes: [[[54.5, 17.0], [55.2, 18.5]]],
-        FilterMessageTypes: ["PositionReport"]
-      }))
-    }
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          APIKey: apiKey,
+          BoundingBoxes: [[[54.5, 17.0], [55.2, 18.5]]],
+          FilterMessageTypes: ["PositionReport"]
+        }))
+      }
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data)
-        const pos = msg.Message?.PositionReport
-        const meta = msg.MetaData
-        if (!pos || !meta) return
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data)
+          const pos = msg.Message?.PositionReport
+          const meta = msg.MetaData
+          if (!pos || !meta) return
 
-        const { Latitude: lat, Longitude: lng, TrueHeading: heading, Sog: speed } = pos
-        const name = meta.ShipName?.trim() || String(meta.MMSI)
-        const mmsi = String(meta.MMSI)
+          const { Latitude: lat, Longitude: lng, TrueHeading: heading, Sog: speed } = pos
+          const name = meta.ShipName?.trim() || String(meta.MMSI)
+          const mmsi = String(meta.MMSI)
 
-        if (!lat || !lng || lat === 0 || lng === 0) return
+          if (!lat || !lng || lat === 0 || lng === 0) return
 
-        const icon = L.divIcon({
-          className: "",
-          iconSize: [0, 0],
-          html: `<div style="transform:rotate(${heading || 0}deg);font-size:18px;line-height:1;filter:drop-shadow(0 0 2px rgba(0,0,0,0.5))">🚢</div>`,
-          iconAnchor: [9, 9],
-        })
+          const icon = L.divIcon({
+            className: "",
+            iconSize: [0, 0],
+            html: `<div style="transform:rotate(${heading || 0}deg);font-size:18px;line-height:1;filter:drop-shadow(0 0 2px rgba(0,0,0,0.5))">🚢</div>`,
+            iconAnchor: [9, 9],
+          })
 
-        if (vesselsRef.current.has(mmsi)) {
-          const existing = vesselsRef.current.get(mmsi)
-          existing.setLatLng([lat, lng])
-          existing.setIcon(icon)
-          existing.getTooltip()?.setContent(`<b>${name}</b><br/>${speed?.toFixed(1) ?? "?"} kn`)
-        } else {
-          const marker = L.marker([lat, lng], { icon, zIndexOffset: 500 })
-          marker.bindTooltip(
-            `<b>${name}</b><br/>${speed?.toFixed(1) ?? "?"} kn`,
-            { permanent: false, direction: "top", offset: [0, -12],
-              className: "vessel-tooltip" }
-          )
-          marker.addTo(mapRef.current)
-          vesselsRef.current.set(mmsi, marker)
-        }
-      } catch {}
-    }
+          if (vesselsRef.current.has(mmsi)) {
+            const existing = vesselsRef.current.get(mmsi)
+            existing.setLatLng([lat, lng])
+            existing.setIcon(icon)
+            existing.getTooltip()?.setContent(`<b>${name}</b><br/>${speed?.toFixed(1) ?? "?"} kn`)
+          } else {
+            const marker = L.marker([lat, lng], { icon, zIndexOffset: 500 })
+            marker.bindTooltip(
+              `<b>${name}</b><br/>${speed?.toFixed(1) ?? "?"} kn`,
+              { permanent: false, direction: "top", offset: [0, -12],
+                className: "vessel-tooltip" }
+            )
+            marker.addTo(mapRef.current)
+            vesselsRef.current.set(mmsi, marker)
+          }
+        } catch {}
+      }
 
-    ws.onerror = () => ws.close()
+      ws.onerror = () => ws.close()
+    })()
 
     return () => {
-      ws.close()
+      wsRef.current?.close()
+      wsRef.current = null
       vesselsRef.current.forEach(m => mapRef.current?.removeLayer(m))
       vesselsRef.current.clear()
     }
