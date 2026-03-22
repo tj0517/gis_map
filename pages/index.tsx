@@ -30,8 +30,12 @@ export default function MapPage() {
   const layerCorridorRef  = useRef<any>(null)
   const [mapReady, setMapReady] = useState(false)
   const [measureActive, setMeasureActive] = useState(false)
+  const [cursorCoords, setCursorCoords] = useState<{lat: number, lng: number} | null>(null)
+  const [searchId, setSearchId] = useState("")
   const measurePointsRef = useRef<any[]>([])
   const measureLayerRef = useRef<any>(null)
+  const markersRef = useRef<Map<string, any>>(new Map())
+  const activeTooltipMarkerRef = useRef<any>(null)
 
   // Redirect jeśli nie zalogowany
   useEffect(() => {
@@ -255,6 +259,39 @@ export default function MapPage() {
     }
   }, [measureActive, mapReady])
 
+  useEffect(() => {
+    if (!mapRef.current || !mapReady) return
+    const map = mapRef.current
+    const onMove = (e: any) => setCursorCoords({ lat: e.latlng.lat, lng: e.latlng.lng })
+    const onOut = () => setCursorCoords(null)
+    map.on("mousemove", onMove)
+    map.on("mouseout", onOut)
+    return () => {
+      map.off("mousemove", onMove)
+      map.off("mouseout", onOut)
+    }
+  }, [mapReady])
+
+  const handleSearch = (id: string) => {
+    if (!geojson || !mapRef.current || !id) return
+    const found = geojson.features.find(f => f.properties.id === id)
+    if (found) {
+      mapRef.current.setView([found.properties.north, found.properties.east], 17, { animate: true })
+      setSelected(found)
+      setSearchId("")
+      setTimeout(() => {
+        if (activeTooltipMarkerRef.current) {
+          activeTooltipMarkerRef.current.closeTooltip()
+        }
+        const marker = markersRef.current.get(id)
+        if (marker) {
+          marker.openTooltip()
+          activeTooltipMarkerRef.current = marker
+        }
+      }, 600)
+    }
+  }
+
   // Renderuj punkty gdy dane gotowe
   useEffect(() => {
     if (!mapRef.current || !geojson || !L || !mapReady) return
@@ -263,6 +300,7 @@ export default function MapPage() {
     mapRef.current.eachLayer((layer: any) => {
       if (layer._uxoMarker) mapRef.current.removeLayer(layer)
     })
+    markersRef.current.clear()
 
     const features = geojson.features.filter(f => {
       if (filterStatus !== "ALL" && f.properties.status !== filterStatus) return false
@@ -294,6 +332,7 @@ export default function MapPage() {
         }
       })
       marker.bindTooltip(id, { permanent: false, direction: "top", offset: [0, -12] })
+      markersRef.current.set(id, marker)
       marker.addTo(mapRef.current)
     }
 
@@ -307,6 +346,23 @@ export default function MapPage() {
       mapRef.current.fitBounds(coords, { padding: [40, 40] })
     }
   }, [geojson, filterStatus, filterSector, mapReady, measureActive])
+
+  const handleExportPNG = async () => {
+    if (!mapDivRef.current) return
+    const domtoimage = (await import("dom-to-image-more")).default
+    const dataUrl = await domtoimage.toPng(mapDivRef.current, {
+      width: mapDivRef.current.offsetWidth * 2,
+      height: mapDivRef.current.offsetHeight * 2,
+      style: {
+        transform: "scale(2)",
+        transformOrigin: "top left",
+      },
+    })
+    const a = document.createElement("a")
+    a.href = dataUrl
+    a.download = `UXO_map_${new Date().toISOString().slice(0, 10)}.png`
+    a.click()
+  }
 
   if (status === "loading" || status === "unauthenticated") {
     return <div style={styles.fullscreen}><div style={styles.spinner}/></div>
@@ -410,6 +466,44 @@ export default function MapPage() {
               })}
             </div>
 
+            {/* Postęp per sektor */}
+            <div style={styles.sideSection}>
+              <div style={styles.sideLabel}>Postęp per sektor</div>
+              {geojson ? (() => {
+                const sectorList = Array.from(new Set(geojson.features.map(f => f.properties.sector))).sort()
+                return sectorList.map(sector => {
+                  const total = geojson.features.filter(f => f.properties.sector === sector).length
+                  const done = geojson.features.filter(f => f.properties.sector === sector && (f.properties.status === "Inspected" || f.properties.status === "Removed")).length
+                  const pct = total === 0 ? 0 : Math.round((done / total) * 100)
+                  const color = pct === 100 ? "#639922" : pct > 0 ? "#EF9F27" : "#4a6070"
+                  return (
+                    <div key={sector} style={{ marginBottom: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                        <span style={{ fontSize: 10, color: "#c8dae8" }}>
+                          {(() => {
+                            const s = String(sector)
+                            return s.length === 3 ? `GEO3_${s[1]}_${s[2]}` : `S${sector}`
+                          })()}
+                        </span>
+                        <span style={{ fontSize: 10, color, fontWeight: 500 }}>{done}/{total} · {pct}%</span>
+                      </div>
+                      <div style={{ height: 5, background: "#1a2f42", borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{
+                          height: "100%",
+                          width: `${pct}%`,
+                          background: color,
+                          borderRadius: 3,
+                          transition: "width 0.4s ease"
+                        }}/>
+                      </div>
+                    </div>
+                  )
+                })
+              })() : (
+                <div style={{ fontSize: 10, color: "#4a6070" }}>Ładowanie danych…</div>
+              )}
+            </div>
+
             {/* Warstwy */}
             <div style={styles.sideSection}>
               <div style={styles.sideLabel}>Warstwy</div>
@@ -428,6 +522,28 @@ export default function MapPage() {
                   <span style={{ ...styles.legendLabel, color: checked ? "#a0b4c4" : "#4a6070" }}>{label}</span>
                 </label>
               ))}
+            </div>
+
+            {/* Szukaj punktu */}
+            <div style={styles.sideSection}>
+              <div style={styles.sideLabel}>Szukaj punktu</div>
+              <select
+                value={searchId}
+                onChange={e => { setSearchId(e.target.value); handleSearch(e.target.value) }}
+                style={{ ...styles.select, width: "100%" }}
+              >
+                <option value="">— wybierz obiekt —</option>
+                {geojson
+                  ? [...geojson.features]
+                      .sort((a, b) => a.properties.id.localeCompare(b.properties.id))
+                      .map(f => (
+                        <option key={f.properties.id} value={f.properties.id}>
+                          {f.properties.id} · {f.properties.status} · S{f.properties.sector}
+                        </option>
+                      ))
+                  : null
+                }
+              </select>
             </div>
 
             {/* Narzędzia */}
@@ -449,6 +565,16 @@ export default function MapPage() {
                   Klikaj punkty na mapie. Kliknij przycisk ponownie aby zakończyć.
                 </div>
               )}
+              <button
+                onClick={handleExportPNG}
+                style={{
+                  ...styles.filterBtn,
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 14 }}>🖨️</span>
+                Eksport PNG
+              </button>
             </div>
 
             {/* Ostatnie odświeżenie */}
@@ -462,6 +588,16 @@ export default function MapPage() {
           {/* ── MAPA ── */}
           <div style={styles.mapArea}>
             <div ref={mapDivRef} style={styles.map}/>
+            {cursorCoords && (
+              <div style={{
+                position: "absolute", bottom: 8, left: 8, zIndex: 1000,
+                background: "rgba(13,31,45,0.85)", border: "1px solid #1e3448",
+                borderRadius: 4, padding: "3px 8px", fontSize: 11,
+                color: "#c8dae8", fontFamily: "monospace", pointerEvents: "none"
+              }}>
+                {cursorCoords.lat.toFixed(5)}° N &nbsp; {cursorCoords.lng.toFixed(5)}° E
+              </div>
+            )}
 
             {/* Loading overlay */}
             {loading && (
