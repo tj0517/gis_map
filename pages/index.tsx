@@ -29,6 +29,9 @@ export default function MapPage() {
   const layerSectorsRef   = useRef<any>(null)
   const layerCorridorRef  = useRef<any>(null)
   const [mapReady, setMapReady] = useState(false)
+  const [showVessels, setShowVessels] = useState(false)
+  const vesselsRef = useRef<Map<string, any>>(new Map())
+  const wsRef = useRef<WebSocket | null>(null)
   const [measureActive, setMeasureActive] = useState(false)
   const [cursorCoords, setCursorCoords] = useState<{lat: number, lng: number} | null>(null)
   const [searchId, setSearchId] = useState("")
@@ -290,6 +293,76 @@ export default function MapPage() {
     }
   }, [mapReady])
 
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !L) return
+    if (!showVessels) {
+      wsRef.current?.close()
+      vesselsRef.current.forEach(m => mapRef.current.removeLayer(m))
+      vesselsRef.current.clear()
+      return
+    }
+
+    const apiKey = process.env.NEXT_PUBLIC_AISSTREAM_KEY
+    if (!apiKey) return
+
+    const ws = new WebSocket("wss://stream.aisstream.io/v0/stream")
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        APIKey: apiKey,
+        BoundingBoxes: [[[54.5, 17.0], [55.2, 18.5]]],
+        FilterMessageTypes: ["PositionReport"]
+      }))
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data)
+        const pos = msg.Message?.PositionReport
+        const meta = msg.MetaData
+        if (!pos || !meta) return
+
+        const { Latitude: lat, Longitude: lng, TrueHeading: heading, Sog: speed } = pos
+        const name = meta.ShipName?.trim() || String(meta.MMSI)
+        const mmsi = String(meta.MMSI)
+
+        if (!lat || !lng || lat === 0 || lng === 0) return
+
+        const icon = L.divIcon({
+          className: "",
+          iconSize: [0, 0],
+          html: `<div style="transform:rotate(${heading || 0}deg);font-size:18px;line-height:1;filter:drop-shadow(0 0 2px rgba(0,0,0,0.5))">🚢</div>`,
+          iconAnchor: [9, 9],
+        })
+
+        if (vesselsRef.current.has(mmsi)) {
+          const existing = vesselsRef.current.get(mmsi)
+          existing.setLatLng([lat, lng])
+          existing.setIcon(icon)
+          existing.getTooltip()?.setContent(`<b>${name}</b><br/>${speed?.toFixed(1) ?? "?"} kn`)
+        } else {
+          const marker = L.marker([lat, lng], { icon, zIndexOffset: 500 })
+          marker.bindTooltip(
+            `<b>${name}</b><br/>${speed?.toFixed(1) ?? "?"} kn`,
+            { permanent: false, direction: "top", offset: [0, -12],
+              className: "vessel-tooltip" }
+          )
+          marker.addTo(mapRef.current)
+          vesselsRef.current.set(mmsi, marker)
+        }
+      } catch {}
+    }
+
+    ws.onerror = () => ws.close()
+
+    return () => {
+      ws.close()
+      vesselsRef.current.forEach(m => mapRef.current?.removeLayer(m))
+      vesselsRef.current.clear()
+    }
+  }, [mapReady, showVessels])
+
   const handleSearch = (id: string) => {
     if (!geojson || !mapRef.current || !id) return
     const found = geojson.features.find(f => f.properties.id === id)
@@ -451,6 +524,7 @@ export default function MapPage() {
         <style>{`
   .geojson-label { background: rgba(15,25,35,0.75); border: none; box-shadow: none; color: #a0b4c4; font-size: 11px; padding: 2px 5px; white-space: nowrap; }
   .leaflet-div-icon { background: transparent !important; border: none !important; box-shadow: none !important; width: auto !important; height: auto !important; }
+  .vessel-tooltip { background: rgba(15,25,35,0.9) !important; border: 1px solid #378ADD !important; color: #c8dae8 !important; font-size: 11px !important; }
 `}</style>
       </Head>
 
@@ -596,6 +670,17 @@ export default function MapPage() {
                   <span style={{ ...styles.legendLabel, color: checked ? "#a0b4c4" : "#4a6070" }}>{label}</span>
                 </label>
               ))}
+              <label key="vessels" style={styles.layerToggle}>
+                <input
+                  type="checkbox"
+                  checked={showVessels}
+                  onChange={e => setShowVessels(e.target.checked)}
+                  style={{ accentColor: "#EF9F27", marginRight: 6 }}
+                />
+                <span style={{ ...styles.legendLabel, color: showVessels ? "#a0b4c4" : "#4a6070" }}>
+                  AIS Vessels
+                </span>
+              </label>
             </div>
 
             {/* Szukaj punktu */}
