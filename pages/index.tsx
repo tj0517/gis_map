@@ -221,18 +221,34 @@ export default function MapPage() {
 
       pts.forEach((pt, i) => {
         L.circleMarker(pt, {
-          radius: 5, color: "#fff", weight: 2,
+          radius: 5, color: "#333", weight: 2,
           fillColor: "#378ADD", fillOpacity: 1
         }).addTo(layer)
+
         if (i > 0) {
-          const dist = map.distance(pts[i - 1], pt)
-          const mid = [(pts[i-1][0] + pt[0]) / 2, (pts[i-1][1] + pt[1]) / 2]
-          L.polyline([pts[i - 1], pt], { color: "#378ADD", weight: 2, dashArray: "6,4" }).addTo(layer)
+          const prev = pts[i - 1]
+          const dist = map.distance(prev, pt)
+          const mid = [(prev[0] + pt[0]) / 2, (prev[1] + pt[1]) / 2]
+
+          const dLat = pt[0] - prev[0]
+          const dLng = pt[1] - prev[1]
+          const angleRad = Math.atan2(dLng, dLat)
+          let bearing = (angleRad * 180 / Math.PI + 360) % 360
+
+          L.polyline([prev, pt], { color: "#378ADD", weight: 2, dashArray: "6,4" }).addTo(layer)
+
+          const distLabel = dist >= 1000 ? (dist / 1000).toFixed(2) + " km" : dist.toFixed(0) + " m"
+          const bearingLabel = bearing.toFixed(1) + "°"
+
           L.marker(mid, {
             icon: L.divIcon({
               className: "",
-              html: `<div style="background:#0f2740;color:#c8dae8;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #378ADD;white-space:nowrap">${dist >= 1000 ? (dist/1000).toFixed(2)+" km" : dist.toFixed(0)+" m"}</div>`,
-              iconAnchor: [30, 10]
+              iconSize: [0, 0],
+              html: `<div style="background:rgba(255,255,255,0.92);color:#111;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #378ADD;white-space:nowrap;line-height:1.6;display:inline-block">
+            <span style="font-weight:600">${distLabel}</span><br/>
+            <span style="color:#444"><span style="display:inline-block;transform:rotate(${bearing.toFixed(0)}deg)">↑</span> ${bearingLabel}</span>
+          </div>`,
+              iconAnchor: [40, 10]
             })
           }).addTo(layer)
         }
@@ -240,12 +256,14 @@ export default function MapPage() {
 
       if (pts.length > 1) {
         let total = 0
-        for (let i = 1; i < pts.length; i++) total += map.distance(pts[i-1], pts[i])
+        for (let i = 1; i < pts.length; i++) total += map.distance(pts[i - 1], pts[i])
         const last = pts[pts.length - 1]
+        const totalLabel = total >= 1000 ? (total / 1000).toFixed(2) + " km" : total.toFixed(0) + " m"
         L.marker(last, {
           icon: L.divIcon({
             className: "",
-            html: `<div style="background:#1F4E79;color:#fff;font-size:12px;font-weight:500;padding:3px 8px;border-radius:4px;border:1px solid #378ADD;white-space:nowrap">∑ ${total >= 1000 ? (total/1000).toFixed(2)+" km" : total.toFixed(0)+" m"}</div>`,
+            iconSize: [0, 0],
+            html: `<div style="background:#1F4E79;color:#fff;font-size:12px;font-weight:600;padding:3px 8px;border-radius:4px;border:1px solid #378ADD;white-space:nowrap">∑ ${totalLabel}</div>`,
             iconAnchor: [-5, 10]
           })
         }).addTo(layer)
@@ -430,7 +448,10 @@ export default function MapPage() {
       <Head>
         <title>UXO WebGIS · SC2503 · SeaClouds</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-        <style>{`.geojson-label { background: rgba(15,25,35,0.75); border: none; box-shadow: none; color: #a0b4c4; font-size: 11px; padding: 2px 5px; white-space: nowrap; }`}</style>
+        <style>{`
+  .geojson-label { background: rgba(15,25,35,0.75); border: none; box-shadow: none; color: #a0b4c4; font-size: 11px; padding: 2px 5px; white-space: nowrap; }
+  .leaflet-div-icon { background: transparent !important; border: none !important; box-shadow: none !important; width: auto !important; height: auto !important; }
+`}</style>
       </Head>
 
       <div style={styles.layout}>
