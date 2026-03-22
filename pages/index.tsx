@@ -29,6 +29,9 @@ export default function MapPage() {
   const layerSectorsRef   = useRef<any>(null)
   const layerCorridorRef  = useRef<any>(null)
   const [mapReady, setMapReady] = useState(false)
+  const [measureActive, setMeasureActive] = useState(false)
+  const measurePointsRef = useRef<any[]>([])
+  const measureLayerRef = useRef<any>(null)
 
   // Redirect jeśli nie zalogowany
   useEffect(() => {
@@ -186,6 +189,71 @@ export default function MapPage() {
     if (showCorridor) layerCorridorRef.current.addTo(mapRef.current)
     else mapRef.current.removeLayer(layerCorridorRef.current)
   }, [showCorridor])
+
+  useEffect(() => {
+    if (!mapRef.current || !L) return
+    const map = mapRef.current
+
+    if (!measureActive) {
+      if (measureLayerRef.current) {
+        measureLayerRef.current.clearLayers()
+      }
+      measurePointsRef.current = []
+      map.getContainer().style.cursor = ""
+      return
+    }
+
+    map.getContainer().style.cursor = "crosshair"
+
+    const layer = L.layerGroup().addTo(map)
+    measureLayerRef.current = layer
+
+    const onClick = (e: any) => {
+      const { lat, lng } = e.latlng
+      measurePointsRef.current.push([lat, lng])
+      const pts = measurePointsRef.current
+
+      layer.clearLayers()
+
+      pts.forEach((pt, i) => {
+        L.circleMarker(pt, {
+          radius: 5, color: "#fff", weight: 2,
+          fillColor: "#378ADD", fillOpacity: 1
+        }).addTo(layer)
+        if (i > 0) {
+          const dist = map.distance(pts[i - 1], pt)
+          const mid = [(pts[i-1][0] + pt[0]) / 2, (pts[i-1][1] + pt[1]) / 2]
+          L.polyline([pts[i - 1], pt], { color: "#378ADD", weight: 2, dashArray: "6,4" }).addTo(layer)
+          L.marker(mid, {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style="background:#0f2740;color:#c8dae8;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #378ADD;white-space:nowrap">${dist >= 1000 ? (dist/1000).toFixed(2)+" km" : dist.toFixed(0)+" m"}</div>`,
+              iconAnchor: [30, 10]
+            })
+          }).addTo(layer)
+        }
+      })
+
+      if (pts.length > 1) {
+        let total = 0
+        for (let i = 1; i < pts.length; i++) total += map.distance(pts[i-1], pts[i])
+        const last = pts[pts.length - 1]
+        L.marker(last, {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="background:#1F4E79;color:#fff;font-size:12px;font-weight:500;padding:3px 8px;border-radius:4px;border:1px solid #378ADD;white-space:nowrap">∑ ${total >= 1000 ? (total/1000).toFixed(2)+" km" : total.toFixed(0)+" m"}</div>`,
+            iconAnchor: [-5, 10]
+          })
+        }).addTo(layer)
+      }
+    }
+
+    map.on("click", onClick)
+    return () => {
+      map.off("click", onClick)
+      map.getContainer().style.cursor = ""
+    }
+  }, [measureActive, mapReady])
 
   // Renderuj punkty gdy dane gotowe
   useEffect(() => {
@@ -351,6 +419,27 @@ export default function MapPage() {
                   <span style={{ ...styles.legendLabel, color: checked ? "#a0b4c4" : "#4a6070" }}>{label}</span>
                 </label>
               ))}
+            </div>
+
+            {/* Narzędzia */}
+            <div style={styles.sideSection}>
+              <div style={styles.sideLabel}>Narzędzia</div>
+              <button
+                onClick={() => setMeasureActive(v => !v)}
+                style={{
+                  ...styles.filterBtn,
+                  ...(measureActive ? styles.filterBtnActive : {}),
+                  display: "flex", alignItems: "center", gap: 6
+                }}
+              >
+                <span style={{ fontSize: 14 }}>📏</span>
+                {measureActive ? "Zakończ pomiar" : "Miara odległości"}
+              </button>
+              {measureActive && (
+                <div style={{ fontSize: 10, color: "#6b9ab8", lineHeight: 1.4, padding: "4px 2px" }}>
+                  Klikaj punkty na mapie. Kliknij przycisk ponownie aby zakończyć.
+                </div>
+              )}
             </div>
 
             {/* Ostatnie odświeżenie */}
