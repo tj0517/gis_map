@@ -8,7 +8,7 @@ export type MarkerStyle = {
 
 const REMOVED_SVG = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">' +
-  '<rect x="2" y="2" width="16" height="16" fill="#639922" stroke="#27500A" stroke-width="1.5"/>' +
+  '<circle cx="10" cy="10" r="8" fill="#639922" stroke="#27500A" stroke-width="1.5"/>' +
   '</svg>'
 )}`
 
