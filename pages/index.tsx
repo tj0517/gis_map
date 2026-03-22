@@ -334,6 +334,59 @@ export default function MapPage() {
       marker.bindTooltip(id, { permanent: false, direction: "top", offset: [0, -12] })
       markersRef.current.set(id, marker)
       marker.addTo(mapRef.current)
+
+      if (status === "In progress") {
+        const circle = L.circle([north, east], {
+          radius: 500,
+          color: "#378ADD",
+          weight: 1.5,
+          opacity: 0.8,
+          fillColor: "#378ADD",
+          fillOpacity: 0,
+        })
+        circle._uxoMarker = true
+        circle.addTo(mapRef.current)
+
+        const hatch = L.circle([north, east], {
+          radius: 500,
+          color: "transparent",
+          weight: 0,
+          fillOpacity: 0.4,
+          fillColor: "#378ADD",
+          className: "hatch-circle-" + id,
+        })
+        hatch._uxoMarker = true
+        hatch.addTo(mapRef.current)
+
+        hatch.on("add", () => {
+          const el = hatch.getElement()
+          if (!el) return
+          const svgRoot = el.closest("svg") || document.querySelector(".leaflet-overlay-pane svg")
+          if (!svgRoot) return
+          const defs = svgRoot.querySelector("defs") || svgRoot.insertBefore(document.createElementNS("http://www.w3.org/2000/svg", "defs"), svgRoot.firstChild)
+          const patId = "hatch-" + id
+          if (!svgRoot.querySelector("#" + patId)) {
+            const pat = document.createElementNS("http://www.w3.org/2000/svg", "pattern")
+            pat.setAttribute("id", patId)
+            pat.setAttribute("patternUnits", "userSpaceOnUse")
+            pat.setAttribute("width", "10")
+            pat.setAttribute("height", "10")
+            pat.setAttribute("patternTransform", "rotate(45)")
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line")
+            line.setAttribute("x1", "0")
+            line.setAttribute("y1", "0")
+            line.setAttribute("x2", "0")
+            line.setAttribute("y2", "10")
+            line.setAttribute("stroke", "#378ADD")
+            line.setAttribute("stroke-width", "1.5")
+            line.setAttribute("stroke-opacity", "0.6")
+            pat.appendChild(line)
+            defs.appendChild(pat)
+          }
+          el.setAttribute("fill", "url(#" + patId + ")")
+          el.setAttribute("fill-opacity", "0.4")
+        })
+      }
     }
 
     // Add non-"In progress" markers first, then "In progress" on top
