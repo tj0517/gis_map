@@ -49,8 +49,7 @@ export function markerSVG(style: MarkerStyle): string {
 export const LEGEND_ITEMS = [
   { status: "pUXO",        type: "",           label: "pUXO — niezweryfikowany" },
   { status: "In progress", type: "",           label: "In progress — nurkowanie" },
-  { status: "Not found",   type: "pUXO",       label: "Not found" },
-  { status: "Inspected",   type: "Not found",  label: "Not found" },
+  { status: "Inspected",   type: "Not found",  label: "Inspected · Not found" },
   { status: "Inspected",   type: "cUXO",       label: "Inspected · cUXO" },
   { status: "Inspected",   type: "Cable/wire", label: "Inspected · Cable/wire" },
   { status: "Inspected",   type: "Debris",     label: "Inspected · Debris" },
