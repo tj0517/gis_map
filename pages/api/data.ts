@@ -146,6 +146,7 @@ function parseExcelToGeoJSON(buffer: Buffer): GeoJSON {
     if (statusLower === "inspected")   normalizedStatus = "Inspected"
     if (statusLower === "removed")     normalizedStatus = "Removed"
     if (statusLower === "in progress") normalizedStatus = "In progress"
+    if (statusLower === "not found")   normalizedStatus = "Not found"
 
     features.push({
       type: "Feature",

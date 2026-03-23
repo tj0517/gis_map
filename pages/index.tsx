@@ -294,6 +294,7 @@ export default function MapPage() {
   }, [mapReady])
 
   useEffect(() => {
+    console.log("AIS useEffect:", { mapReady, showVessels, hasMap: !!mapRef.current, hasL: !!L })
     if (!mapReady || !mapRef.current || !L) return
     if (!showVessels) {
       vesselsRef.current.forEach(m => mapRef.current?.removeLayer(m))
@@ -301,7 +302,10 @@ export default function MapPage() {
       return
     }
 
+    console.log("Creating EventSource...")
     const source = new EventSource("/api/ais-stream")
+    source.onopen = () => console.log("SSE connected!")
+    source.onerror = (e) => console.log("SSE error:", e)
 
     source.onmessage = (event) => {
       try {

@@ -14,7 +14,9 @@ const REMOVED_SVG = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
 
 const ICONS: Record<string, MarkerStyle> = {
   "pUXO":                    { iconUrl: "/IOGP1030.svg",        size: 20, label: "pUXO — niezweryfikowany" },
-  "Inspected|pUXO":          { iconUrl: "/IOGP1030.svg",        size: 20, label: "Inspected · pUXO" },
+  "Inspected|pUXO":      { iconUrl: "/IOGP1030.svg",        size: 20, label: "Inspected · pUXO" },
+  "Inspected|Not found": { iconUrl: "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="white" stroke="black" stroke-width="1.5"/></svg>'), size: 20, label: "Not found" },
+  "Not found|pUXO":      { iconUrl: "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="white" stroke="black" stroke-width="1.5"/></svg>'), size: 20, label: "Not found" },
   "Inspected|cUXO":          { iconUrl: "/IOGP1026.svg",        size: 20, label: "Inspected · cUXO" },
   "Inspected|Cable/wire":    { iconUrl: "/IOGP1012.svg",        size: 20, label: "Inspected · Cable/wire" },
   "Inspected|Debris":        { iconUrl: "/IOGP1021.svg",        size: 20, label: "Inspected · Debris" },
@@ -47,7 +49,8 @@ export function markerSVG(style: MarkerStyle): string {
 export const LEGEND_ITEMS = [
   { status: "pUXO",        type: "",           label: "pUXO — niezweryfikowany" },
   { status: "In progress", type: "",           label: "In progress — nurkowanie" },
-  { status: "Inspected",   type: "pUXO",       label: "Inspected · pUXO" },
+  { status: "Not found",   type: "pUXO",       label: "Not found" },
+  { status: "Inspected",   type: "Not found",  label: "Not found" },
   { status: "Inspected",   type: "cUXO",       label: "Inspected · cUXO" },
   { status: "Inspected",   type: "Cable/wire", label: "Inspected · Cable/wire" },
   { status: "Inspected",   type: "Debris",     label: "Inspected · Debris" },
