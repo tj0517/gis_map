@@ -309,7 +309,8 @@ export default function MapPage() {
 
     source.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data)
+        let msg = JSON.parse(event.data)
+        if (typeof msg === "string") msg = JSON.parse(msg)
         const pos = msg.Message?.PositionReport
         const meta = msg.MetaData
         if (!pos || !meta) return

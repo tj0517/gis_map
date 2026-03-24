@@ -26,7 +26,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   })
 
   ws.on("message", (data) => {
-    res.write(`data: ${data}\n\n`)
+    const str = data.toString()
+    res.write(`data: ${str}\n\n`)
   })
 
   ws.on("close", () => res.end())
