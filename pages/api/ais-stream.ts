@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   ws.on("open", () => {
     ws.send(JSON.stringify({
       APIKey: apiKey,
-      BoundingBoxes: [[[54.77, 17.49], [54.88, 17.95]]],
+      BoundingBoxes: [[[53.0, 14.0], [56.0, 21.0]]],
       FilterMessageTypes: ["PositionReport"]
     }))
   })
