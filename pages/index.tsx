@@ -318,6 +318,7 @@ export default function MapPage() {
         const name = meta.ShipName?.trim() || String(meta.MMSI)
         const mmsi = String(meta.MMSI)
         if (!lat || !lng || lat === 0 || lng === 0) return
+        console.log("Dodaję marker:", name, lat, lng, "mapa:", !!mapRef.current)
         const icon = L.divIcon({
           className: "",
           iconSize: [0, 0],
