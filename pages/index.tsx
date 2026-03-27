@@ -317,6 +317,7 @@ export default function MapPage() {
         const { Latitude: lat, Longitude: lng, TrueHeading: heading, Sog: speed } = pos
         const name = meta.ShipName?.trim() || String(meta.MMSI)
         const mmsi = String(meta.MMSI)
+        console.log("Marker:", name, "lat:", lat, "lng:", lng)
         if (!lat || !lng || lat === 0 || lng === 0) return
         console.log("Dodaję marker:", name, lat, lng, "mapa:", !!mapRef.current)
         const icon = L.divIcon({
