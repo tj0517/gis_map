@@ -8,19 +8,13 @@ import { getMarkerStyle, LEGEND_ITEMS } from "../lib/symbology"
 let L: any = null
 
 const SIMOPS_VESSELS = [
-  { mmsi: "261007303", name: "Baltic Constructor", role: "UXO Survey",         color: "#E24B4A" },
-  { mmsi: "261005510", name: "WŁA-184 HELOT",      role: "Environmental",      color: "#378ADD" },
-  { mmsi: "261098090", name: "Baltic Messenger",   role: "UXO Support",        color: "#EF9F27" },
-  { mmsi: "261011330", name: "Baltic Jet",         role: "UXO Support",        color: "#F0A500" },
-  { mmsi: "261005193", name: "PM Explorer",        role: "Environmental",      color: "#5BA4CF" },
-  { mmsi: "261001480", name: "Geo Scanner",        role: "Magnetometers",      color: "#A78BFA" },
-  { mmsi: "261091090", name: "Geo Sonar",          role: "Sub-bottom/SSS",     color: "#C084FC" },
-  { mmsi: "261002065", name: "Baltic Surveyor",    role: "UXO Survey",         color: "#FB923C" },
-  { mmsi: "261018650", name: "Litoral",            role: "Buoy Deployment",    color: "#34D399" },
-  { mmsi: "261029790", name: "Hektor AG",          role: "Environmental",      color: "#60A5FA" },
-  { mmsi: "244962000", name: "Nordnes",            role: "3rd Party OFW",      color: "#94A3B8" },
-  { mmsi: "205787000", name: "Boka Falcon",        role: "3rd Party OFW",      color: "#94A3B8" },
-  { mmsi: "253477000", name: "Vagant",             role: "3rd Party OFW",      color: "#94A3B8" },
+  { mmsi: "261007303", name: "Baltic Constructor", role: "UXO Survey",      color: "#E24B4A" },
+  { mmsi: "261011330", name: "Baltic Jet",         role: "UXO Support",     color: "#F0A500" },
+  { mmsi: "261098090", name: "Baltic Messenger",   role: "UXO Support",     color: "#EF9F27" },
+  { mmsi: "261005510", name: "WŁA-184 HELOT",      role: "Environmental",   color: "#378ADD" },
+  { mmsi: "261029790", name: "Hektor AG",          role: "Environmental",   color: "#60A5FA" },
+  { mmsi: "261005193", name: "PM Explorer",        role: "Environmental",   color: "#5BA4CF" },
+  { mmsi: "261001480", name: "Geo Scanner",        role: "Magnetometers",   color: "#A78BFA" },
 ]
 
 const ZONE_OPTIONS = [0, 50, 100, 250, 500, 1000]
