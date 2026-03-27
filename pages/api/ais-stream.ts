@@ -17,8 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const fetchAndSend = async () => {
     try {
       const r = await fetch(
-        "https://api.myshiptracking.com/api/v2/vessel/status?mmsi=261007303",
-        { headers: { "Authorization": `Bearer ${apiKey}` } }
+        "https://api.myshiptracking.com/api/v2/vessel?mmsi=261007303",
+        { headers: { "x-api-key": apiKey } }
       )
       if (!r.ok) return
       const data = await r.json()
@@ -26,14 +26,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!d?.lat || !d?.lng) return
       const msg = JSON.stringify({
         mmsi: "261007303",
-        name: d.name,
+        name: d.vessel_name,
         lat: parseFloat(d.lat),
         lng: parseFloat(d.lng),
-        heading: parseFloat(d.heading) || 0,
+        heading: parseFloat(d.course) || 0,
         speed: parseFloat(d.speed) || 0,
-        status: d.navigational_status,
-        destination: d.destination,
-        positionReceived: d.timestamp,
+        status: String(d.nav_status),
+        positionReceived: d.received,
       })
       res.write(`data: ${msg}\n\n`)
     } catch {}
