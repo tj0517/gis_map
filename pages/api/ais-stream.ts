@@ -12,6 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader("Content-Type", "text/event-stream")
   res.setHeader("Cache-Control", "no-cache")
   res.setHeader("Connection", "keep-alive")
+  res.setHeader("X-Accel-Buffering", "no")
   res.flushHeaders()
 
   const fetchAndSend = async () => {
@@ -20,8 +21,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         "https://api.myshiptracking.com/api/v2/vessel?mmsi=261007303",
         { headers: { "x-api-key": apiKey } }
       )
+      console.log("MST status:", r.status)
       if (!r.ok) return
       const data = await r.json()
+      console.log("MST data:", JSON.stringify(data).slice(0, 200))
       const d = data.data
       if (!d?.lat || !d?.lng) return
       const msg = JSON.stringify({
@@ -35,6 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         positionReceived: d.received,
       })
       res.write(`data: ${msg}\n\n`)
+      if (typeof (res as any).flush === "function") (res as any).flush()
     } catch {}
   }
 
