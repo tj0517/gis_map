@@ -313,11 +313,16 @@ export default function MapPage() {
         const { mmsi, name, lat, lng, heading, speed, status, destination } = msg
         if (!lat || !lng) return
         console.log("Dodaję marker:", name, lat, lng, "mapa:", !!mapRef.current)
+        const vesselColor = mmsi === "261007303" ? "#E24B4A" : "#EF9F27"
         const icon = L.divIcon({
           className: "",
           iconSize: [0, 0],
-          html: `<div style="transform:rotate(${heading || 0}deg);font-size:18px;line-height:1;filter:drop-shadow(0 0 2px rgba(0,0,0,0.5))">🚢</div>`,
-          iconAnchor: [9, 9],
+          html: `<div style="transform:rotate(${heading || 0}deg);display:inline-block;line-height:0">
+          <svg width="18" height="28" viewBox="0 0 18 28" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="9,0 18,10 14,28 4,28 0,10" fill="${vesselColor}" stroke="white" stroke-width="1.5"/>
+          </svg>
+        </div>`,
+          iconAnchor: [9, 14],
         })
         if (vesselsRef.current.has(mmsi)) {
           const existing = vesselsRef.current.get(mmsi)
