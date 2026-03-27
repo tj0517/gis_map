@@ -6,7 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions)
   if (!session) return res.status(401).end()
 
-  const apiKey = process.env.DATADOCKED_KEY
+  const apiKey = process.env.MYSHIPTRACKING_KEY
   if (!apiKey) return res.status(500).end()
 
   res.setHeader("Content-Type", "text/event-stream")
@@ -14,29 +14,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader("Connection", "keep-alive")
   res.flushHeaders()
 
-  const mmsi = "261007303"
-
   const fetchAndSend = async () => {
     try {
       const r = await fetch(
-        `https://datadocked.com/api/vessels_operations/get-vessel-location?imo_or_mmsi=${mmsi}`,
-        { headers: { "accept": "application/json", "x-api-key": apiKey } }
+        "https://api.myshiptracking.com/api/v2/vessel/status?mmsi=261007303",
+        { headers: { "Authorization": `Bearer ${apiKey}` } }
       )
       if (!r.ok) return
       const data = await r.json()
-      const d = data.detail
-      if (!d?.latitude || !d?.longitude) return
-
+      const d = data.data
+      if (!d?.lat || !d?.lng) return
       const msg = JSON.stringify({
-        mmsi,
+        mmsi: "261007303",
         name: d.name,
-        lat: parseFloat(d.latitude),
-        lng: parseFloat(d.longitude),
+        lat: parseFloat(d.lat),
+        lng: parseFloat(d.lng),
         heading: parseFloat(d.heading) || 0,
         speed: parseFloat(d.speed) || 0,
-        status: d.navigationalStatus,
+        status: d.navigational_status,
         destination: d.destination,
-        positionReceived: d.positionReceived,
+        positionReceived: d.timestamp,
       })
       res.write(`data: ${msg}\n\n`)
     } catch {}
