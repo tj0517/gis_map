@@ -593,7 +593,18 @@ export default function MapPage() {
                           <polygon points="9,0 18,10 14,28 4,28 0,10" fill={color} stroke="white" strokeWidth="1.5"/>
                         </svg>
                       </div>
-                      <span style={{ fontSize: 10, color: "#c8dae8", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+                      <span
+                        onClick={() => {
+                          const marker = vesselsRef.current.get(mmsi)
+                          if (marker && mapRef.current) {
+                            const latlng = marker.getLatLng()
+                            mapRef.current.setView([latlng.lat, latlng.lng], 15, { animate: true })
+                            marker.openTooltip()
+                          }
+                        }}
+                        style={{ fontSize: 10, color: "#c8dae8", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
+                        title="Kliknij aby przejść do statku"
+                      >{name}</span>
                       <select
                         value={vesselZones[mmsi] ?? 0}
                         onChange={e => setVesselZones(prev => ({ ...prev, [mmsi]: Number(e.target.value) }))}
