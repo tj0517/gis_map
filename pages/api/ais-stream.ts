@@ -1,13 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import { getServerSession } from "next-auth"
 import { authOptions } from "./auth/[...nextauth]"
-import WebSocket from "ws"
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
   if (!session) return res.status(401).end()
 
-  const apiKey = process.env.AISSTREAM_KEY
+  const apiKey = process.env.DATADOCKED_KEY
   if (!apiKey) return res.status(500).end()
 
   res.setHeader("Content-Type", "text/event-stream")
@@ -15,24 +14,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader("Connection", "keep-alive")
   res.flushHeaders()
 
-  const ws = new WebSocket("wss://stream.aisstream.io/v0/stream")
+  const mmsi = "261007303"
 
-  ws.on("open", () => {
-    ws.send(JSON.stringify({
-      APIKey: apiKey,
-      BoundingBoxes: [[[54.31, 17.28], [55.04, 18.067]]],
-      FilterMessageTypes: ["PositionReport"],
-      FiltersShipMMSI: ["261007303"]
-    }))
+  const fetchAndSend = async () => {
+    try {
+      const r = await fetch(
+        `https://datadocked.com/api/vessels_operations/get-vessel-location?imo_or_mmsi=${mmsi}`,
+        { headers: { "accept": "application/json", "x-api-key": apiKey } }
+      )
+      if (!r.ok) return
+      const data = await r.json()
+      const d = data.detail
+      if (!d?.latitude || !d?.longitude) return
+
+      const msg = JSON.stringify({
+        mmsi,
+        name: d.name,
+        lat: parseFloat(d.latitude),
+        lng: parseFloat(d.longitude),
+        heading: parseFloat(d.heading) || 0,
+        speed: parseFloat(d.speed) || 0,
+        status: d.navigationalStatus,
+        destination: d.destination,
+        positionReceived: d.positionReceived,
+      })
+      res.write(`data: ${msg}\n\n`)
+    } catch {}
+  }
+
+  await fetchAndSend()
+  const interval = setInterval(fetchAndSend, 60000)
+
+  req.on("close", () => {
+    clearInterval(interval)
+    res.end()
   })
-
-  ws.on("message", (data) => {
-    const str = data.toString()
-    res.write(`data: ${str}\n\n`)
-  })
-
-  ws.on("close", () => res.end())
-  ws.on("error", () => res.end())
-
-  req.on("close", () => ws.close())
 }

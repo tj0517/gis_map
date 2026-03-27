@@ -309,16 +309,9 @@ export default function MapPage() {
 
     source.onmessage = (event) => {
       try {
-        let msg = JSON.parse(event.data)
-        if (typeof msg === "string") msg = JSON.parse(msg)
-        const pos = msg.Message?.PositionReport
-        const meta = msg.MetaData
-        if (!pos || !meta) return
-        const { Latitude: lat, Longitude: lng, TrueHeading: heading, Sog: speed } = pos
-        const name = meta.ShipName?.trim() || String(meta.MMSI)
-        const mmsi = String(meta.MMSI)
-        console.log("Marker:", name, "lat:", lat, "lng:", lng)
-        if (!lat || !lng || lat === 0 || lng === 0) return
+        const msg = JSON.parse(event.data)
+        const { mmsi, name, lat, lng, heading, speed, status, destination } = msg
+        if (!lat || !lng) return
         console.log("Dodaję marker:", name, lat, lng, "mapa:", !!mapRef.current)
         const icon = L.divIcon({
           className: "",
