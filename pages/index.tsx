@@ -569,9 +569,9 @@ export default function MapPage() {
                   <span style={{ ...styles.legendLabel, color: checked ? "#a0b4c4" : "#4a6070" }}>{label}</span>
                 </label>
               ))}
-              <label style={styles.layerToggle}>
-                <input type="checkbox" checked={showVessels} onChange={e => setShowVessels(e.target.checked)} style={{ accentColor: "#EF9F27", marginRight: 6 }}/>
-                <span style={{ ...styles.legendLabel, color: showVessels ? "#a0b4c4" : "#4a6070" }}>AIS Vessels</span>
+              <label style={{ ...styles.layerToggle, opacity: 0.4, cursor: "not-allowed" }} title="Brak kredytów AIS — funkcja tymczasowo niedostępna">
+                <input type="checkbox" checked={false} disabled style={{ accentColor: "#EF9F27", marginRight: 6 }}/>
+                <span style={{ ...styles.legendLabel, color: "#4a6070" }}>AIS Vessels <span style={{ fontSize: 9, color: "#E24B4A" }}>(niedostępne)</span></span>
               </label>
             </div>
 
