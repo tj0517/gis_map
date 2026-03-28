@@ -4,8 +4,16 @@ import { useEffect, useRef, useState } from "react"
 import Head from "next/head"
 import type { GeoJSON, UXOFeature } from "./api/data"
 import { getMarkerStyle, LEGEND_ITEMS } from "../lib/symbology"
+import { analyzeWeather } from "../lib/weatherAssessment"
 
 let L: any = null
+
+const WEATHER_LOCATIONS = [
+  { id: "geo3",       label: "GEO3",              lat: 54.84,    lng: 17.79    },
+  { id: "leba",       label: "Port Łeba",         lat: 54.78525, lng: 17.56319 },
+  { id: "wladysl",    label: "Port Władysławowo", lat: 54.79791, lng: 18.44210 },
+  { id: "assessment", label: "⚡ Assessment",     lat: 54.84,    lng: 17.79    },
+]
 
 const SIMOPS_VESSELS = [
   { mmsi: "261007303", name: "Baltic Constructor", role: "UXO Survey",      color: "#E24B4A" },
@@ -41,6 +49,13 @@ export default function MapPage() {
   const layerCorridorRef = useRef<any>(null)
   const [mapReady, setMapReady]         = useState(false)
   const [showVessels, setShowVessels]   = useState(false)
+  const [activeTab, setActiveTab] = useState<"uxo" | "weather">("uxo")
+  const [weatherTab, setWeatherTab] = useState<string>("geo3")
+  const [weatherData, setWeatherData] = useState<Record<string, any[]>>({})
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [weatherError, setWeatherError] = useState<string | null>(null)
+  const [weatherFetched, setWeatherFetched] = useState(false)
+  const [weatherLastFetch, setWeatherLastFetch] = useState<Date | null>(null)
   const [vesselZones, setVesselZones]   = useState<Record<string, number>>(() =>
     Object.fromEntries(SIMOPS_VESSELS.map(v => [v.mmsi, v.mmsi === "261007303" ? 500 : 0]))
   )
@@ -233,6 +248,58 @@ export default function MapPage() {
     map.on("mouseout", onOut)
     return () => { map.off("mousemove", onMove); map.off("mouseout", onOut) }
   }, [mapReady])
+
+  useEffect(() => {
+    const shouldFetch = activeTab === "weather" && (
+      !weatherFetched ||
+      (weatherLastFetch && Date.now() - weatherLastFetch.getTime() > 8 * 60 * 60 * 1000)
+    )
+    if (!shouldFetch) return
+
+    const scheduleNextFetch = () => {
+      const n = new Date()
+      const next = new Date(n)
+      next.setMinutes(0, 0, 0)
+      next.setSeconds(0, 0)
+      // Następne pełne godziny: 00:00, 08:00, 16:00
+      const slots = [0, 8, 16]
+      const currentHour = next.getHours()
+      const nextSlot = slots.find(s => s > currentHour) ?? 24
+      if (nextSlot === 24) {
+        next.setDate(next.getDate() + 1)
+        next.setHours(0, 0, 0, 0)
+      } else {
+        next.setHours(nextSlot, 0, 0, 0)
+      }
+      const ms = next.getTime() - n.getTime()
+      return setTimeout(() => {
+        setWeatherFetched(false)
+        setWeatherLastFetch(null)
+      }, ms)
+    }
+    const timer = scheduleNextFetch()
+
+    setWeatherLoading(true)
+    setWeatherError(null)
+
+    Promise.all(
+      WEATHER_LOCATIONS.map(loc =>
+        fetch(`/api/weather?lat=${loc.lat}&lng=${loc.lng}`)
+          .then(r => r.json())
+          .then(data => ({ id: loc.id, hours: data.hours ?? [] }))
+          .catch(() => ({ id: loc.id, hours: [] }))
+      )
+    ).then(results => {
+      const newData: Record<string, any[]> = {}
+      results.forEach(r => { newData[r.id] = r.hours })
+      setWeatherData(newData)
+      setWeatherFetched(true)
+      setWeatherLastFetch(new Date())
+    }).catch(e => setWeatherError(e.message))
+      .finally(() => setWeatherLoading(false))
+
+    return () => clearTimeout(timer)
+  }, [activeTab, weatherFetched])
 
   // AIS useEffect
   useEffect(() => {
@@ -490,8 +557,21 @@ export default function MapPage() {
           </div>
         </div>
 
+        {/* TABS */}
+        <div style={{ display: "flex", borderBottom: "1px solid #1e2f3e", background: "#0f1923", flexShrink: 0 }}>
+          {(["uxo", "weather"] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              background: "none", border: "none", borderBottom: activeTab === tab ? "2px solid #378ADD" : "2px solid transparent",
+              color: activeTab === tab ? "#fff" : "#4a6070", cursor: "pointer", fontSize: 12, fontWeight: 500,
+              padding: "8px 20px", letterSpacing: "0.05em", textTransform: "uppercase" as const,
+            }}>
+              {tab === "uxo" ? "🗺 UXO Mapa" : "🌊 Prognoza"}
+            </button>
+          ))}
+        </div>
+
         {/* MAIN */}
-        <div style={styles.main}>
+        <div style={{ ...styles.main, display: activeTab === "uxo" ? "flex" : "none" }}>
           {/* SIDEBAR */}
           <div style={styles.sidebar}>
 
@@ -701,6 +781,229 @@ export default function MapPage() {
             </div>
           )}
         </div>
+
+        {/* WEATHER PANEL */}
+        {activeTab === "weather" && (
+          <div style={{ flex: 1, overflowY: "auto", background: "#0f1923", padding: 24 }}>
+            <div style={{ maxWidth: 800, margin: "0 auto" }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ color: "#fff", fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
+                  Prognoza pogody morskiej · GEO3
+                </div>
+                <div style={{ color: "#4a6070", fontSize: 12 }}>
+                  54.84°N · 17.79°E · Źródła: SMHI, FMI, FCOO · Prognoza 48h
+                  {weatherLastFetch && (() => {
+                    const next = new Date(weatherLastFetch)
+                    next.setHours(next.getHours() + 8)
+                    next.setMinutes(0, 0, 0)
+                    return (
+                      <>
+                        <span style={{ color: "#2a3a4a", marginLeft: 12 }}>
+                          · Aktualizacja: {weatherLastFetch.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" })} {weatherLastFetch.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span style={{ color: "#2a3a4a", marginLeft: 12 }}>
+                          · Następna aktualizacja: {next.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })} (00:00 / 08:00 / 16:00)
+                        </span>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Pod-zakładki lokalizacji */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid #1e3448", paddingBottom: 8 }}>
+                {WEATHER_LOCATIONS.map(loc => (
+                  <button key={loc.id} onClick={() => setWeatherTab(loc.id)}
+                    style={{ ...styles.filterBtn, fontSize: 11, padding: "5px 12px",
+                      ...(weatherTab === loc.id ? styles.filterBtnActive : {}) }}>
+                    {loc.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ASSESSMENT TAB */}
+              {weatherTab === "assessment" && (() => {
+                const geo3Data = weatherData["geo3"] ?? []
+                if (weatherLoading) return <div style={{ color: "#6b9ab8", fontSize: 14, padding: 20 }}>Ładowanie danych…</div>
+                if (!weatherFetched || geo3Data.length === 0) return (
+                  <div style={{ color: "#4a6070", fontSize: 13, padding: 20 }}>
+                    Najpierw załaduj dane pogodowe — przejdź na zakładkę GEO3 aby pobrać prognozę.
+                  </div>
+                )
+                const result = analyzeWeather(geo3Data)
+                const alertColors: Record<string, string> = {
+                  green: "#639922", yellow: "#EF9F27", orange: "#FB923C", red: "#E24B4A"
+                }
+                const alertBg: Record<string, string> = {
+                  green: "#1a2f1a", yellow: "#2f2a1a", orange: "#2f221a", red: "#2f1a1a"
+                }
+                return (
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
+                    {/* Summary */}
+                    <div style={{ padding: "12px 16px", background: "#0d1f2d", borderRadius: 8, borderLeft: "4px solid #378ADD" }}>
+                      <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 6 }}>Podsumowanie operacyjne · GEO3 · 48h</div>
+                      <div style={{ color: "#c8dae8", fontSize: 13, lineHeight: 1.5 }}>{result.summary}</div>
+                    </div>
+
+                    {/* Alerty */}
+                    <div>
+                      <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Alerty operacyjne</div>
+                      {result.alerts.length === 0 ? (
+                        <div style={{ color: "#4a6070", fontSize: 12 }}>Brak alertów — warunki stabilne.</div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                          {result.alerts.map((alert, i) => (
+                            <div key={i} style={{ padding: "10px 14px", background: alertBg[alert.type], borderRadius: 6, borderLeft: `3px solid ${alertColors[alert.type]}` }}>
+                              <div style={{ color: alertColors[alert.type], fontSize: 10, fontWeight: 500, marginBottom: 3 }}>
+                                {alert.type === "green" ? "✅ OPERACJE" : alert.type === "yellow" ? "🟡 CREW CHANGE" : alert.type === "orange" ? "⚠️ OSTRZEŻENIE" : "🔴 KRYTYCZNY"}
+                              </div>
+                              <div style={{ color: "#c8dae8", fontSize: 12, lineHeight: 1.5 }}>{alert.message}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Okna operacyjne */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div style={{ background: "#0d1f2d", borderRadius: 8, padding: 12 }}>
+                        <div style={{ color: "#639922", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>⚓ Okna Anchoring (Hs ≤ 0.4m)</div>
+                        {result.anchorWindows.length === 0 ? (
+                          <div style={{ color: "#4a6070", fontSize: 11 }}>Brak okien w 48h</div>
+                        ) : result.anchorWindows.map((w, i) => (
+                          <div key={i} style={{ fontSize: 11, color: "#c8dae8", marginBottom: 4 }}>
+                            <span style={{ color: "#639922" }}>▶</span> {new Date(w.start).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} → {new Date(w.end).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ background: "#0d1f2d", borderRadius: 8, padding: 12 }}>
+                        <div style={{ color: "#EF9F27", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>🚤 Okna Crew Change (Hs ≤ 0.5m)</div>
+                        {result.crewChangeWindows.length === 0 ? (
+                          <div style={{ color: "#4a6070", fontSize: 11 }}>Brak okien w 48h</div>
+                        ) : result.crewChangeWindows.map((w, i) => (
+                          <div key={i} style={{ fontSize: 11, color: "#c8dae8", marginBottom: 6 }}>
+                            <div><span style={{ color: "#EF9F27" }}>▶</span> Okno: {new Date(w.start).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} → {new Date(w.end).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</div>
+                            <div style={{ color: "#6b9ab8", marginLeft: 12 }}>Jet wypływa: {new Date(w.jetDepart).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Przekroczenia Keep Station */}
+                    {result.keepStationBreaches.length > 0 && (
+                      <div style={{ background: "#0d1f2d", borderRadius: 8, padding: 12 }}>
+                        <div style={{ color: "#E24B4A", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>🔴 Przekroczenia Keep Station (Hs &gt; 1.0m przez ≥6h)</div>
+                        {result.keepStationBreaches.map((b, i) => (
+                          <div key={i} style={{ fontSize: 11, color: "#c8dae8", marginBottom: 4 }}>
+                            <span style={{ color: "#E24B4A" }}>▶</span> {new Date(b.start).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} → {new Date(b.end).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC · <span style={{ color: "#E24B4A" }}>{b.duration}h</span>
+                          </div>
+                        ))}
+                        {result.bcDepartureDeadline && (
+                          <div style={{ marginTop: 8, padding: "8px 10px", background: "#2f1a1a", borderRadius: 4, fontSize: 11, color: "#F09595" }}>
+                            ⚓ BC musi podnieść kotwice i wypłynąć najpóźniej: <strong>{new Date(result.bcDepartureDeadline).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: 10, color: "#2a3a4a", marginTop: 4 }}>
+                      Analiza bazuje na prognozie GEO3 · Tranzyty: BC→Władysławowo 6h · Baltic Jet→BC z Łeby 2h
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* TABELA — tylko dla lokalizacji innych niż assessment */}
+              {weatherTab !== "assessment" && (<>
+              {weatherLoading && (
+                <div style={{ color: "#6b9ab8", fontSize: 14, padding: 20 }}>Ładowanie danych pogodowych…</div>
+              )}
+
+              {weatherError && (
+                <div style={{ color: "#E24B4A", fontSize: 13, padding: 12, background: "#3a1a1a", borderRadius: 6 }}>
+                  Błąd: {weatherError}
+                </div>
+              )}
+
+              {!weatherLoading && !weatherError && (weatherData[weatherTab] ?? []).length > 0 && (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #1e3448" }}>
+                        {["Czas (UTC)", "Hs (m)", "Tp (s)", "Wiatr (kn)", "Porywy (kn)", "Kier. (°)", "Kier.", "T. pow. (°C)"].map(h => (
+                          <th key={h} style={{ padding: "8px 12px", color: "#6b9ab8", fontWeight: 500, textAlign: "left" as const, whiteSpace: "nowrap" as const }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(weatherData[weatherTab] ?? []).map((row, i) => {
+                        const dt = new Date(row.time)
+                        const dateStr = dt.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit" })
+                        const timeStr = dt.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })
+                        const isNight = dt.getHours() < 6 || dt.getHours() >= 20
+                        const windKn = row.windSpeed != null ? (row.windSpeed * 1.944).toFixed(1) : "—"
+                        const gustKn = row.gust != null ? (row.gust * 1.944).toFixed(1) : "—"
+                        const hs = row.waveHeight != null ? row.waveHeight.toFixed(2) : "—"
+                        const tp = row.swellPeriod != null ? row.swellPeriod.toFixed(1) : "—"
+                        const dir = row.windDirection != null ? Math.round(row.windDirection) : null
+                        const dirLabel = dir != null ? ["N","NE","E","SE","S","SW","W","NW"][Math.round(dir / 45) % 8] : "—"
+                        const temp = row.airTemp != null ? row.airTemp.toFixed(1) : "—"
+                        const hsNum = row.waveHeight ?? 0
+                        const hsColor = hsNum > 1.0 ? "#E24B4A" : hsNum > 0.5 ? "#FB923C" : hsNum > 0.4 ? "#EF9F27" : "#639922"
+                        const windNum = row.windSpeed ?? 0
+                        const windColor = windNum > 10 ? "#E24B4A" : windNum > 6 ? "#EF9F27" : "#c8dae8"
+                        const isMidnight = dt.getHours() === 0
+                        return (
+                          <>
+                            {isMidnight && i > 0 && (
+                              <tr key={"sep-" + i}>
+                                <td colSpan={8} style={{ padding: "4px 12px", background: "#0d1f2d", color: "#378ADD", fontSize: 11, fontWeight: 500 }}>
+                                  {dt.toLocaleDateString("pl-PL", { weekday: "long", day: "2-digit", month: "2-digit" })}
+                                </td>
+                              </tr>
+                            )}
+                            <tr key={row.time} style={{ background: i % 2 === 0 ? "#0f1923" : "#0d1f2d", borderBottom: "1px solid #1a2f42" }}>
+                              <td style={{ padding: "7px 12px", color: isNight ? "#4a6070" : "#c8dae8", whiteSpace: "nowrap" as const }}>{dateStr} {timeStr}</td>
+                              <td style={{ padding: "7px 12px", color: hsColor, fontWeight: 500 }}>{hs}</td>
+                              <td style={{ padding: "7px 12px", color: "#a0b4c4" }}>{tp}</td>
+                              <td style={{ padding: "7px 12px", color: windColor, fontWeight: 500 }}>{windKn}</td>
+                              <td style={{ padding: "7px 12px", color: "#a0b4c4" }}>{gustKn}</td>
+                              <td style={{ padding: "7px 12px", color: "#a0b4c4" }}>{dir ?? "—"}</td>
+                              <td style={{ padding: "7px 12px", color: "#6b9ab8" }}>
+                                {dir != null ? <span style={{ display: "inline-block", transform: `rotate(${dir}deg)` }}>↑</span> : ""} {dirLabel}
+                              </td>
+                              <td style={{ padding: "7px 12px", color: "#a0b4c4" }}>{temp}</td>
+                            </tr>
+                          </>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {!weatherLoading && !weatherError && (weatherData[weatherTab] ?? []).length > 0 && (
+                <div style={{ marginTop: 16, display: "flex", gap: 20, fontSize: 11, color: "#4a6070" }}>
+                  <span>🟢 Hs ≤ 0.4m — Anchoring/Lifting OK</span>
+                  <span>🟡 Hs 0.4–0.5m — Diving/Crew change OK</span>
+                  <span>🟠 Hs 0.5–1.0m — Keep station only</span>
+                  <span>🔴 Hs &gt; 1.0m — WOW Standby</span>
+                </div>
+              )}
+
+              {!weatherLoading && weatherFetched && (
+                <div style={{ marginTop: 12, fontSize: 11, color: "#2a3a4a" }}>
+                  <button onClick={() => { setWeatherFetched(false) }} style={{ background: "none", border: "1px solid #2a3a4a", borderRadius: 4, color: "#4a6070", cursor: "pointer", fontSize: 11, padding: "4px 10px" }}>
+                    ↻ Odśwież dane
+                  </button>
+                </div>
+              )}
+              )}
+              </>)}
+            </div>
+          </div>
+        )}
+
       </div>
     </>
   )
