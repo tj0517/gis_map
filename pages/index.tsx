@@ -998,7 +998,6 @@ export default function MapPage() {
                   </button>
                 </div>
               )}
-              )}
               </>)}
             </div>
           </div>
