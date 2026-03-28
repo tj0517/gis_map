@@ -26,16 +26,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.flushHeaders()
 
   const fetchAndSend = async () => {
-    await Promise.all(MMSI_LIST.map(async (mmsi) => {
+    for (const mmsi of MMSI_LIST) {
       try {
         const r = await fetch(
           `https://api.myshiptracking.com/api/v2/vessel?mmsi=${mmsi}`,
           { headers: { "x-api-key": apiKey } }
         )
-        if (!r.ok) return
+        if (!r.ok) continue
         const data = await r.json()
         const d = data.data
-        if (!d?.lat || !d?.lng) return
+        if (!d?.lat || !d?.lng) continue
         const msg = JSON.stringify({
           mmsi,
           name: d.vessel_name,
@@ -43,13 +43,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           lng: parseFloat(d.lng),
           heading: parseFloat(d.course) || 0,
           speed: parseFloat(d.speed) || 0,
-          status: String(d.nav_status),
+          status: String(d.nav_status ?? ""),
           positionReceived: d.received,
         })
         res.write(`data: ${msg}\n\n`)
         if (typeof (res as any).flush === "function") (res as any).flush()
       } catch {}
-    }))
+      await new Promise(r => setTimeout(r, 300))
+    }
   }
 
   await fetchAndSend()
