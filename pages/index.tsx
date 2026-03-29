@@ -5,6 +5,7 @@ import Head from "next/head"
 import type { GeoJSON, UXOFeature } from "./api/data"
 import { getMarkerStyle, LEGEND_ITEMS } from "../lib/symbology"
 import { analyzeWeather } from "../lib/weatherAssessment"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Legend } from "recharts"
 
 let L: any = null
 
@@ -912,6 +913,62 @@ export default function MapPage() {
                   </div>
                 )
               })()}
+
+              {/* WYKRES — tylko dla lokalizacji innych niż assessment */}
+              {weatherTab !== "assessment" && (weatherData[weatherTab] ?? []).length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>
+                    Wykres Hs (m) · {WEATHER_LOCATIONS.find(l => l.id === weatherTab)?.label}
+                  </div>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart
+                      data={(weatherData[weatherTab] ?? []).map(h => ({
+                        time: new Date(h.time).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }),
+                        hs: h.waveHeight != null ? parseFloat(h.waveHeight.toFixed(2)) : null,
+                      }))}
+                      margin={{ top: 8, right: 16, left: 0, bottom: 40 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e3448" />
+                      <XAxis
+                        dataKey="time"
+                        tick={{ fill: "#4a6070", fontSize: 10 }}
+                        interval={5}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis
+                        tick={{ fill: "#4a6070", fontSize: 10 }}
+                        domain={[0, "auto"]}
+                        label={{ value: "Hs (m)", angle: -90, position: "insideLeft", fill: "#4a6070", fontSize: 10 }}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: "#0d1f2d", border: "1px solid #1e3448", fontSize: 11, color: "#c8dae8" }}
+                        formatter={(value: any) => [`${value} m`, "Hs"]}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: 11, color: "#6b9ab8", paddingTop: 8 }}
+                        formatter={(value) => {
+                          if (value === "hs") return "Hs (m)"
+                          return value
+                        }}
+                      />
+                      <ReferenceLine y={0.4} stroke="#639922" strokeDasharray="4 2" label={{ value: "Anchoring 0.4m", fill: "#639922", fontSize: 9, position: "right" }} />
+                      <ReferenceLine y={0.5} stroke="#EF9F27" strokeDasharray="4 2" label={{ value: "Crew change 0.5m", fill: "#EF9F27", fontSize: 9, position: "right" }} />
+                      <ReferenceLine y={1.0} stroke="#E24B4A" strokeDasharray="4 2" label={{ value: "Keep station 1.0m", fill: "#E24B4A", fontSize: 9, position: "right" }} />
+                      <Line
+                        type="monotone"
+                        dataKey="hs"
+                        stroke="#378ADD"
+                        strokeWidth={2}
+                        dot={{ r: 2, fill: "#378ADD" }}
+                        activeDot={{ r: 4 }}
+                        connectNulls
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
 
               {/* TABELA — tylko dla lokalizacji innych niż assessment */}
               {weatherTab !== "assessment" && (<>
