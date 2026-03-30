@@ -14,7 +14,6 @@ const WEATHER_LOCATIONS = [
   { id: "leba",       label: "Port Łeba",         lat: 54.78525, lng: 17.56319 },
   { id: "wladysl",    label: "Port Władysławowo", lat: 54.79791, lng: 18.44210 },
   { id: "assessment", label: "⚡ Assessment",     lat: 54.84,    lng: 17.79    },
-  { id: "geo3_test",  label: "GEO3 test",         lat: 54.84,    lng: 17.79    },
 ]
 
 const GEO3_TEST_DATA = [

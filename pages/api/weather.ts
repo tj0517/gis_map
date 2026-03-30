@@ -3,11 +3,6 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "./auth/[...nextauth]"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
   if (!session) return res.status(401).json({ error: "Unauthorized" })
@@ -46,30 +41,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       airTemp: h.airTemperature?.smhi ?? h.airTemperature?.fmi ?? null,
     }))
 
-    // Zapisz do Supabase tylko GEO3
+    // Zapisz do Supabase tylko GEO3 — nie blokuj odpowiedzi
     if (locationId === "geo3") {
-      const rows = hours.map((h: any) => ({
-        location_id: "geo3",
-        fetched_at: now.toISOString(),
-        forecast_time: h.time,
-        wave_height: h.waveHeight,
-        swell_period: h.swellPeriod,
-        wind_speed: h.windSpeed,
-        wind_direction: h.windDirection,
-        gust: h.gust,
-        air_temp: h.airTemp,
-      }))
-
-      const { error: dbError } = await supabase
-        .from("weather_forecasts")
-        .insert(rows)
-
-      if (dbError) console.error("Supabase insert error:", dbError.message)
-      else console.log(`Saved ${rows.length} rows to Supabase for GEO3`)
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+        )
+        const rows = hours.map((h: any) => ({
+          location_id: "geo3",
+          fetched_at: now.toISOString(),
+          forecast_time: h.time,
+          wave_height: h.waveHeight,
+          swell_period: h.swellPeriod,
+          wind_speed: h.windSpeed,
+          wind_direction: h.windDirection,
+          gust: h.gust,
+          air_temp: h.airTemp,
+        }))
+        const { error: dbError } = await supabase
+          .from("weather_forecasts")
+          .insert(rows)
+        if (dbError) console.error("Supabase insert error:", JSON.stringify(dbError))
+        else console.log(`Saved ${rows.length} rows to Supabase for GEO3`)
+      } catch (dbEx: any) {
+        console.error("Supabase exception:", dbEx?.message ?? String(dbEx))
+      }
     }
-
     res.status(200).json({ hours })
   } catch (e: any) {
-    res.status(500).json({ error: e.message })
+    console.error("Weather API catch error:", e)
+    res.status(500).json({ error: e?.message ?? String(e) })
   }
 }
