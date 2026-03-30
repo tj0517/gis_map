@@ -14,6 +14,59 @@ const WEATHER_LOCATIONS = [
   { id: "leba",       label: "Port Łeba",         lat: 54.78525, lng: 17.56319 },
   { id: "wladysl",    label: "Port Władysławowo", lat: 54.79791, lng: 18.44210 },
   { id: "assessment", label: "⚡ Assessment",     lat: 54.84,    lng: 17.79    },
+  { id: "geo3_test",  label: "GEO3 test",         lat: 54.84,    lng: 17.79    },
+]
+
+const GEO3_TEST_DATA = [
+  { time: "2026-03-29T17:00:00Z", waveHeight: 0.43, swellPeriod: null, windSpeed: 6.38, windDirection: 269, gust: 7.94, airTemp: 2.9 },
+  { time: "2026-03-29T18:00:00Z", waveHeight: 0.43, swellPeriod: null, windSpeed: 6.02, windDirection: 267, gust: 7.94, airTemp: 3.0 },
+  { time: "2026-03-29T19:00:00Z", waveHeight: 0.43, swellPeriod: null, windSpeed: 5.92, windDirection: 266, gust: 7.51, airTemp: 2.9 },
+  { time: "2026-03-29T20:00:00Z", waveHeight: 0.45, swellPeriod: null, windSpeed: 5.30, windDirection: 246, gust: 7.51, airTemp: 3.1 },
+  { time: "2026-03-29T21:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 6.28, windDirection: 233, gust: 7.72, airTemp: 2.9 },
+  { time: "2026-03-29T22:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 6.90, windDirection: 231, gust: 8.57, airTemp: 2.2 },
+  { time: "2026-03-29T23:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 6.79, windDirection: 230, gust: 8.89, airTemp: 2.3 },
+  { time: "2026-03-30T00:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 6.28, windDirection: 227, gust: 8.49, airTemp: 2.4 },
+  { time: "2026-03-30T01:00:00Z", waveHeight: 0.45, swellPeriod: null, windSpeed: 5.30, windDirection: 213, gust: 7.94, airTemp: 2.1 },
+  { time: "2026-03-30T02:00:00Z", waveHeight: 0.45, swellPeriod: null, windSpeed: 5.51, windDirection: 206, gust: 7.20, airTemp: 1.6 },
+  { time: "2026-03-30T03:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 5.71, windDirection: 199, gust: 7.10, airTemp: 1.4 },
+  { time: "2026-03-30T04:00:00Z", waveHeight: 0.51, swellPeriod: null, windSpeed: 6.38, windDirection: 185, gust: 7.82, airTemp: 2.4 },
+  { time: "2026-03-30T05:00:00Z", waveHeight: 0.55, swellPeriod: null, windSpeed: 7.20, windDirection: 183, gust: 8.80, airTemp: 2.7 },
+  { time: "2026-03-30T06:00:00Z", waveHeight: 0.54, swellPeriod: null, windSpeed: 7.72, windDirection: 186, gust: 9.42, airTemp: 2.7 },
+  { time: "2026-03-30T07:00:00Z", waveHeight: 0.53, swellPeriod: null, windSpeed: 7.61, windDirection: 178, gust: 9.32, airTemp: 2.8 },
+  { time: "2026-03-30T08:00:00Z", waveHeight: 0.51, swellPeriod: null, windSpeed: 7.61, windDirection: 173, gust: 9.32, airTemp: 2.8 },
+  { time: "2026-03-30T09:00:00Z", waveHeight: 0.49, swellPeriod: null, windSpeed: 7.41, windDirection: 172, gust: 9.22, airTemp: 3.1 },
+  { time: "2026-03-30T10:00:00Z", waveHeight: 0.46, swellPeriod: null, windSpeed: 7.51, windDirection: 168, gust: 9.12, airTemp: 4.1 },
+  { time: "2026-03-30T11:00:00Z", waveHeight: 0.44, swellPeriod: null, windSpeed: 6.69, windDirection: 165, gust: 9.01, airTemp: 4.9 },
+  { time: "2026-03-30T12:00:00Z", waveHeight: 0.40, swellPeriod: null, windSpeed: 5.30, windDirection: 159, gust: 7.94, airTemp: 5.4 },
+  { time: "2026-03-30T13:00:00Z", waveHeight: 0.41, swellPeriod: null, windSpeed: 0.72, windDirection: 170, gust: 3.13, airTemp: 5.7 },
+  { time: "2026-03-30T14:00:00Z", waveHeight: 0.49, swellPeriod: null, windSpeed: 0.51, windDirection: 226, gust: 3.54, airTemp: 5.7 },
+  { time: "2026-03-30T15:00:00Z", waveHeight: 0.56, swellPeriod: null, windSpeed: 1.29, windDirection: 248, gust: 1.49, airTemp: 5.0 },
+  { time: "2026-03-30T16:00:00Z", waveHeight: 0.58, swellPeriod: null, windSpeed: 5.51, windDirection: 275, gust: 8.19, airTemp: 4.1 },
+  { time: "2026-03-30T17:00:00Z", waveHeight: 0.57, swellPeriod: null, windSpeed: 6.79, windDirection: 263, gust: 8.19, airTemp: 3.8 },
+  { time: "2026-03-30T18:00:00Z", waveHeight: 0.60, swellPeriod: null, windSpeed: 6.02, windDirection: 254, gust: 8.60, airTemp: 4.0 },
+  { time: "2026-03-30T19:00:00Z", waveHeight: 0.66, swellPeriod: null, windSpeed: 6.28, windDirection: 254, gust: 7.61, airTemp: 4.0 },
+  { time: "2026-03-30T20:00:00Z", waveHeight: 0.75, swellPeriod: null, windSpeed: 6.59, windDirection: 246, gust: 8.19, airTemp: 3.9 },
+  { time: "2026-03-30T21:00:00Z", waveHeight: 0.79, swellPeriod: null, windSpeed: 5.30, windDirection: 228, gust: 8.03, airTemp: 3.8 },
+  { time: "2026-03-30T22:00:00Z", waveHeight: 0.75, swellPeriod: null, windSpeed: 6.59, windDirection: 239, gust: 8.09, airTemp: 3.7 },
+  { time: "2026-03-30T23:00:00Z", waveHeight: 0.69, swellPeriod: null, windSpeed: 6.38, windDirection: 251, gust: 8.03, airTemp: 3.7 },
+  { time: "2026-03-31T00:00:00Z", waveHeight: 0.65, swellPeriod: null, windSpeed: 5.10, windDirection: 237, gust: 7.72, airTemp: 3.8 },
+  { time: "2026-03-31T01:00:00Z", waveHeight: 0.64, swellPeriod: null, windSpeed: 4.68, windDirection: 239, gust: 6.59, airTemp: 3.6 },
+  { time: "2026-03-31T02:00:00Z", waveHeight: 0.61, swellPeriod: null, windSpeed: 5.61, windDirection: 265, gust: 6.90, airTemp: 3.5 },
+  { time: "2026-03-31T03:00:00Z", waveHeight: 0.57, swellPeriod: null, windSpeed: 5.10, windDirection: 265, gust: 6.79, airTemp: 3.5 },
+  { time: "2026-03-31T04:00:00Z", waveHeight: 0.60, swellPeriod: null, windSpeed: 5.71, windDirection: 243, gust: 6.90, airTemp: 3.4 },
+  { time: "2026-03-31T05:00:00Z", waveHeight: 0.60, swellPeriod: null, windSpeed: 6.12, windDirection: 244, gust: 7.41, airTemp: 3.4 },
+  { time: "2026-03-31T06:00:00Z", waveHeight: 0.52, swellPeriod: null, windSpeed: 5.30, windDirection: 253, gust: 8.03, airTemp: 3.4 },
+  { time: "2026-03-31T07:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 4.42, windDirection: 265, gust: 6.38, airTemp: 3.4 },
+  { time: "2026-03-31T08:00:00Z", waveHeight: 0.45, swellPeriod: null, windSpeed: 4.32, windDirection: 261, gust: 5.51, airTemp: 3.4 },
+  { time: "2026-03-31T09:00:00Z", waveHeight: 0.43, swellPeriod: null, windSpeed: 6.02, windDirection: 271, gust: 7.31, airTemp: 3.3 },
+  { time: "2026-03-31T10:00:00Z", waveHeight: 0.43, swellPeriod: null, windSpeed: 5.00, windDirection: 271, gust: 7.31, airTemp: 3.4 },
+  { time: "2026-03-31T11:00:00Z", waveHeight: 0.43, swellPeriod: null, windSpeed: 5.30, windDirection: 265, gust: 6.28, airTemp: 3.5 },
+  { time: "2026-03-31T12:00:00Z", waveHeight: 0.45, swellPeriod: null, windSpeed: 5.61, windDirection: 270, gust: 6.90, airTemp: 3.6 },
+  { time: "2026-03-31T13:00:00Z", waveHeight: 0.48, swellPeriod: null, windSpeed: 5.00, windDirection: 267, gust: 6.69, airTemp: 3.7 },
+  { time: "2026-03-31T14:00:00Z", waveHeight: 0.50, swellPeriod: null, windSpeed: 4.42, windDirection: 260, gust: 6.02, airTemp: 3.8 },
+  { time: "2026-03-31T15:00:00Z", waveHeight: 0.50, swellPeriod: null, windSpeed: 4.42, windDirection: 260, gust: 6.02, airTemp: 3.8 },
+  { time: "2026-03-31T16:00:00Z", waveHeight: 0.49, swellPeriod: null, windSpeed: 4.42, windDirection: 260, gust: 6.02, airTemp: 3.8 },
+  { time: "2026-03-31T17:00:00Z", waveHeight: 0.47, swellPeriod: null, windSpeed: 4.42, windDirection: 260, gust: 6.02, airTemp: 3.8 },
 ]
 
 const SIMOPS_VESSELS = [
@@ -260,18 +313,8 @@ export default function MapPage() {
     const scheduleNextFetch = () => {
       const n = new Date()
       const next = new Date(n)
-      next.setMinutes(0, 0, 0)
-      next.setSeconds(0, 0)
-      // Następne pełne godziny: 00:00, 08:00, 16:00
-      const slots = [0, 8, 16]
-      const currentHour = next.getHours()
-      const nextSlot = slots.find(s => s > currentHour) ?? 24
-      if (nextSlot === 24) {
-        next.setDate(next.getDate() + 1)
-        next.setHours(0, 0, 0, 0)
-      } else {
-        next.setHours(nextSlot, 0, 0, 0)
-      }
+      next.setDate(next.getDate() + 1)
+      next.setHours(0, 0, 0, 0)
       const ms = next.getTime() - n.getTime()
       return setTimeout(() => {
         setWeatherFetched(false)
@@ -284,16 +327,25 @@ export default function MapPage() {
     setWeatherError(null)
 
     Promise.all(
-      WEATHER_LOCATIONS.map(loc =>
-        fetch(`/api/weather?lat=${loc.lat}&lng=${loc.lng}`)
+      WEATHER_LOCATIONS.filter(loc => loc.id !== "assessment" && loc.id !== "geo3_test").map(loc =>
+        fetch(`/api/weather?lat=${loc.lat}&lng=${loc.lng}&locationId=${loc.id}`)
           .then(r => r.json())
-          .then(data => ({ id: loc.id, hours: data.hours ?? [] }))
-          .catch(() => ({ id: loc.id, hours: [] }))
+          .then(data => {
+            if (data.error) throw new Error(data.error)
+            return { id: loc.id, hours: data.hours ?? [] }
+          })
+          .catch(e => ({ id: loc.id, hours: [], error: e.message }))
       )
     ).then(results => {
       const newData: Record<string, any[]> = {}
-      results.forEach(r => { newData[r.id] = r.hours })
+      let firstError: string | null = null
+      results.forEach(r => {
+        newData[r.id] = r.hours
+        if ((r as any).error && !firstError) firstError = (r as any).error
+      })
+      newData["geo3_test"] = GEO3_TEST_DATA
       setWeatherData(newData)
+      if (firstError) setWeatherError(firstError)
       setWeatherFetched(true)
       setWeatherLastFetch(new Date())
     }).catch(e => setWeatherError(e.message))
@@ -791,19 +843,19 @@ export default function MapPage() {
                 <div style={{ color: "#fff", fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
                   Prognoza pogody morskiej · GEO3
                 </div>
-                <div style={{ color: "#4a6070", fontSize: 12 }}>
+                <div style={{ color: "#6b9ab8", fontSize: 12 }}>
                   54.84°N · 17.79°E · Źródła: SMHI, FMI, FCOO · Prognoza 48h
                   {weatherLastFetch && (() => {
                     const next = new Date(weatherLastFetch)
-                    next.setHours(next.getHours() + 8)
-                    next.setMinutes(0, 0, 0)
+                    next.setDate(next.getDate() + 1)
+                    next.setHours(0, 0, 0, 0)
                     return (
                       <>
-                        <span style={{ color: "#2a3a4a", marginLeft: 12 }}>
+                        <span style={{ color: "#6b9ab8", marginLeft: 12 }}>
                           · Aktualizacja: {weatherLastFetch.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" })} {weatherLastFetch.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
                         </span>
-                        <span style={{ color: "#2a3a4a", marginLeft: 12 }}>
-                          · Następna aktualizacja: {next.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })} (00:00 / 08:00 / 16:00)
+                        <span style={{ color: "#6b9ab8", marginLeft: 12 }}>
+                          · Następna aktualizacja: {next.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit" })} 00:00
                         </span>
                       </>
                     )
@@ -939,7 +991,7 @@ export default function MapPage() {
                       />
                       <YAxis
                         tick={{ fill: "#4a6070", fontSize: 10 }}
-                        domain={[0, "auto"]}
+                        domain={[0, 1.2]}
                         label={{ value: "Hs (m)", angle: -90, position: "insideLeft", fill: "#4a6070", fontSize: 10 }}
                       />
                       <Tooltip
@@ -953,9 +1005,9 @@ export default function MapPage() {
                           return value
                         }}
                       />
-                      <ReferenceLine y={0.4} stroke="#639922" strokeDasharray="4 2" label={{ value: "Anchoring 0.4m", fill: "#639922", fontSize: 9, position: "right" }} />
-                      <ReferenceLine y={0.5} stroke="#EF9F27" strokeDasharray="4 2" label={{ value: "Crew change 0.5m", fill: "#EF9F27", fontSize: 9, position: "right" }} />
-                      <ReferenceLine y={1.0} stroke="#E24B4A" strokeDasharray="4 2" label={{ value: "Keep station 1.0m", fill: "#E24B4A", fontSize: 9, position: "right" }} />
+                      <ReferenceLine y={0.4} stroke="#639922" strokeDasharray="4 2" />
+                      <ReferenceLine y={0.5} stroke="#EF9F27" strokeDasharray="4 2" />
+                      <ReferenceLine y={1.0} stroke="#E24B4A" strokeDasharray="4 2" />
                       <Line
                         type="monotone"
                         dataKey="hs"
@@ -970,15 +1022,25 @@ export default function MapPage() {
                 </div>
               )}
 
+              {/* KRYTERIA */}
+              {weatherTab !== "assessment" && (weatherData[weatherTab] ?? []).length > 0 && (
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" as const, fontSize: 11, marginBottom: 16, padding: "10px 14px", background: "#0d1f2d", borderRadius: 6 }}>
+                  <span style={{ color: "#6b9ab8" }}><span style={{ color: "#639922", fontWeight: 600 }}>🟢 Hs ≤ 0.4m</span> — Anchoring/Lifting OK</span>
+                  <span style={{ color: "#6b9ab8" }}><span style={{ color: "#EF9F27", fontWeight: 600 }}>🟡 Hs 0.4–0.5m</span> — Diving/Crew change OK</span>
+                  <span style={{ color: "#6b9ab8" }}><span style={{ color: "#FB923C", fontWeight: 600 }}>🟠 Hs 0.5–1.0m</span> — Keep station only</span>
+                  <span style={{ color: "#6b9ab8" }}><span style={{ color: "#E24B4A", fontWeight: 600 }}>🔴 Hs &gt; 1.0m</span> — WOW Standby</span>
+                </div>
+              )}
+
               {/* TABELA — tylko dla lokalizacji innych niż assessment */}
               {weatherTab !== "assessment" && (<>
               {weatherLoading && (
                 <div style={{ color: "#6b9ab8", fontSize: 14, padding: 20 }}>Ładowanie danych pogodowych…</div>
               )}
 
-              {weatherError && (
-                <div style={{ color: "#E24B4A", fontSize: 13, padding: 12, background: "#3a1a1a", borderRadius: 6 }}>
-                  Błąd: {weatherError}
+              {!weatherLoading && weatherError && (
+                <div style={{ color: "#EF9F27", fontSize: 13, padding: "12px 16px", background: "#2f2a1a", borderRadius: 6, borderLeft: "3px solid #EF9F27", marginBottom: 12 }}>
+                  ⏳ {weatherError}
                 </div>
               )}
 
@@ -1036,15 +1098,6 @@ export default function MapPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
-              )}
-
-              {!weatherLoading && !weatherError && (weatherData[weatherTab] ?? []).length > 0 && (
-                <div style={{ marginTop: 16, display: "flex", gap: 20, fontSize: 11, color: "#4a6070" }}>
-                  <span>🟢 Hs ≤ 0.4m — Anchoring/Lifting OK</span>
-                  <span>🟡 Hs 0.4–0.5m — Diving/Crew change OK</span>
-                  <span>🟠 Hs 0.5–1.0m — Keep station only</span>
-                  <span>🔴 Hs &gt; 1.0m — WOW Standby</span>
                 </div>
               )}
 

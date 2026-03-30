@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.100.1",
     "dom-to-image-more": "^3.7.2",
     "html2canvas": "^1.4.1",
     "leaflet": "^1.9.4",
