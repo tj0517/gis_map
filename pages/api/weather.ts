@@ -21,10 +21,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const now = new Date()
   const end = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+  // StormGlass wymaga unix timestamp zamiast ISO string
+  const startTs = Math.floor(now.getTime() / 1000)
+  const endTs = Math.floor(end.getTime() / 1000)
 
   try {
     const r = await fetch(
-      `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lng}&params=waveHeight,swellPeriod,windSpeed,windDirection,gust,airTemperature&source=fmi,smhi,fcoo&start=${now.toISOString()}&end=${end.toISOString()}`,
+      `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lng}&params=waveHeight,swellPeriod,windSpeed,windDirection,gust,airTemperature&source=fmi,smhi,fcoo&start=${startTs}&end=${endTs}`,
       { headers: { Authorization: apiKey } }
     )
 
