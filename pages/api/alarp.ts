@@ -30,6 +30,15 @@ function getRevision(filename: string | null): "IFR" | "Final" | "Missing" {
   return "Missing"
 }
 
+function getSlopeRisk(slope: number | null): number {
+  if (slope === null || slope <= 1) return 100
+  if (slope <= 2) return 70
+  if (slope <= 3) return 40
+  if (slope <= 4) return 20
+  if (slope <= 5) return 10
+  return 0
+}
+
 function getPuxoStatus(puxo: number, removed: number): "clear" | "partial" | "hazard" | "none" {
   if (puxo === 0) return "none"
   if (removed === 0) return "hazard"
@@ -77,6 +86,7 @@ export function enrichRecord(r: FugroRecord) {
     }
   }
 
+  const slopeRisk = getSlopeRisk(r.slope)
   return {
     ...r,
     alarp1Rev,
@@ -84,6 +94,7 @@ export function enrichRecord(r: FugroRecord) {
     tirRev,
     puxoStatus,
     docStatus,
+    slopeRisk,
   }
 }
 
@@ -107,6 +118,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const [lng, lat] = proj4("EPSG:2180", "EPSG:4326", [r.xcoord, r.ycoord])
       return { ...enrichRecord(r), lat, lng }
     })
+
+    // Zapisz risk_slope do Supabase
+    try {
+      const updates = enriched
+        .filter(r => r.slope !== null)
+        .map(r => ({ id: r.id, risk_slope: r.slopeRisk }))
+
+      for (const u of updates) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/FUGRO_GEO_Dashboard_rev1?id=eq.${u.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({ risk_slope: u.risk_slope }),
+          }
+        )
+      }
+      console.log(`Updated risk_slope for ${updates.length} records`)
+    } catch (e: any) {
+      console.error("Supabase risk_slope update error:", e.message)
+    }
+
     res.status(200).json(enriched)
   } catch (e: any) {
     res.status(500).json({ error: e.message })

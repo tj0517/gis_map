@@ -980,9 +980,27 @@ export default function MapPage() {
                     {[
                       { label: "pUXO", value: alarpSelected.puxo, removed: alarpSelected.removed, status: alarpSelected.puxoStatus },
                       { label: "Boulders", value: alarpSelected.boulders },
-                      { label: "Slope", value: alarpSelected.slope },
+                      { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
                       { label: "Assets", value: alarpSelected.assets },
                     ].map(h => {
+                      // Slope używa risk score
+                      if (h.label === "Slope" && h.risk !== undefined) {
+                        const pct = h.risk ?? 100
+                        const color = pct >= 70 ? "#639922" : pct >= 40 ? "#EF9F27" : pct >= 20 ? "#FB923C" : "#E24B4A"
+                        return (
+                          <div key={h.label} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, color: "#a0b4c4" }}>Slope</span>
+                              <span style={{ fontSize: 11, color, fontWeight: 500 }}>
+                                {h.value ?? 0}° · {pct}%
+                              </span>
+                            </div>
+                            <div style={{ height: 8, background: "#1a2f42", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, transition: "width 0.3s ease" }}/>
+                            </div>
+                          </div>
+                        )
+                      }
                       const hasHazard = (h.value ?? 0) > 0
                       const color = !hasHazard ? "#639922" : h.status === "clear" ? "#639922" : h.status === "partial" ? "#EF9F27" : "#E24B4A"
                       const pct = !hasHazard ? 100 : h.status === "clear" ? 100 : h.status === "partial" ? 50 : 0
@@ -994,8 +1012,8 @@ export default function MapPage() {
                               {!hasHazard ? "Clear" : h.status === "clear" ? "Removed" : h.status === "partial" ? `Partial (${h.removed}/${h.value})` : `Hazard (${h.value})`}
                             </span>
                           </div>
-                          <div style={{ height: 4, background: "#1a2f42", borderRadius: 2, overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 2 }}/>
+                          <div style={{ height: 8, background: "#1a2f42", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, transition: "width 0.3s ease" }}/>
                           </div>
                         </div>
                       )
