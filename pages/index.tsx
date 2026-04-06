@@ -409,7 +409,8 @@ export default function MapPage() {
       const lat = d.lat
       const lng = d.lng
       if (!lat || !lng) return
-      const color = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
+      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : d.overallRisk === "yellow" ? "#EF9F27" : "#639922"
+      const color = riskColor
       const icon = L.divIcon({
         className: "",
         iconSize: [14, 14],
@@ -945,6 +946,36 @@ export default function MapPage() {
                 </div>
               </div>
 
+              {/* LEGENDA GEOHAZARD */}
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #1e3448" }}>
+                <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Geohazard Risk Legend</div>
+                {[
+                  { color: "#E24B4A", label: "pUXO present — not cleared" },
+                  { color: "#FB923C", label: "pUXO partially cleared / Assets present" },
+                  { color: "#EF9F27", label: "Boulders present / Slope >3°" },
+                  { color: "#639922", label: "No significant geohazards" },
+                ].map(l => (
+                  <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: l.color, flexShrink: 0 }}/>
+                    <span style={{ fontSize: 10, color: "#6b9ab8" }}>{l.label}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #1a2f42" }}>
+                  <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 6 }}>Documentation Status</div>
+                  {[
+                    { color: "#639922", label: "Final — all docs rev 01" },
+                    { color: "#378ADD", label: "IFR — client review (rev 00)" },
+                    { color: "#EF9F27", label: "Incomplete — docs missing revision" },
+                    { color: "#E24B4A", label: "Missing — docs not submitted" },
+                  ].map(l => (
+                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                      <div style={{ width: 12, height: 3, background: l.color, flexShrink: 0 }}/>
+                      <span style={{ fontSize: 10, color: "#6b9ab8" }}>{l.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* SZCZEGÓŁY WYBRANEGO PUNKTU */}
               {alarpSelected ? (
                 <div style={{ padding: 16 }}>
@@ -1034,18 +1065,19 @@ export default function MapPage() {
                 </div>
               ) : (
                 <div style={{ padding: 16 }}>
-                  <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Odwierty</div>
+                  <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Geotechnical Sites</div>
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                     {alarpData.map(d => {
-                      const color = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
+                      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : d.overallRisk === "yellow" ? "#EF9F27" : "#639922"
+                      const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
                         <div key={d.id} onClick={() => setAlarpSelected(d)}
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderRadius: 4, background: "#0f1923", cursor: "pointer", borderLeft: `3px solid ${color}` }}>
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderRadius: 4, background: "#0f1923", cursor: "pointer", borderLeft: `3px solid ${riskColor}` }}>
                           <div>
                             <div style={{ fontSize: 11, color: "#c8dae8", fontWeight: 500 }}>{d.id}</div>
                             <div style={{ fontSize: 10, color: "#4a6070" }}>{d.type} · S{d.sector}</div>
                           </div>
-                          <span style={{ fontSize: 10, color, fontWeight: 500 }}>{d.docStatus}</span>
+                          <span style={{ fontSize: 10, color: docColor, fontWeight: 500 }}>{d.docStatus}</span>
                         </div>
                       )
                     })}

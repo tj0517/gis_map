@@ -87,6 +87,21 @@ export function enrichRecord(r: FugroRecord) {
   }
 
   const slopeRisk = getSlopeRisk(r.slope)
+
+  // Overall geohazard risk — hierarchia: pUXO > assets > boulders > slope
+  let overallRisk: "red" | "orange" | "yellow" | "green"
+  if (r.puxo > 0 && r.removed === 0) {
+    overallRisk = "red"
+  } else if (r.puxo > 0 && r.removed < r.puxo) {
+    overallRisk = "orange"
+  } else if ((r.assets ?? 0) > 0) {
+    overallRisk = "orange"
+  } else if ((r.boulders ?? 0) > 0 || slopeRisk < 70) {
+    overallRisk = "yellow"
+  } else {
+    overallRisk = "green"
+  }
+
   return {
     ...r,
     alarp1Rev,
@@ -95,6 +110,7 @@ export function enrichRecord(r: FugroRecord) {
     puxoStatus,
     docStatus,
     slopeRisk,
+    overallRisk,
   }
 }
 
