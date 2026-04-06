@@ -1017,24 +1017,6 @@ export default function MapPage() {
                       { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
                       { label: "Assets", value: alarpSelected.assets },
                     ].map(h => {
-                      if (alarpSelected.noData) {
-                        return (
-                          <div key={h.label} style={{ marginBottom: 10 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                              <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
-                              <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>TBC</span>
-                            </div>
-                            <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #fff" }}/>
-                          </div>
-                        )
-                      }
-                      return null
-                    }).filter(Boolean).length > 0 ? [
-                      { label: "pUXO", value: alarpSelected.puxo, removed: alarpSelected.removed, status: alarpSelected.puxoStatus },
-                      { label: "Boulders", value: alarpSelected.boulders },
-                      { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
-                      { label: "Assets", value: alarpSelected.assets },
-                    ].map(h => {
                       if (alarpSelected.noData) return (
                         <div key={h.label} style={{ marginBottom: 10 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
