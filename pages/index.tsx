@@ -1096,7 +1096,7 @@ export default function MapPage() {
                   <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Geotechnical Sites</div>
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                     {alarpData.map(d => {
-                      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
+                      const riskColor = d.noData ? "#ffffff" : d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
                       const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
                         <div key={d.id} onClick={() => {
