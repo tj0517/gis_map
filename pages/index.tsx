@@ -102,7 +102,11 @@ export default function MapPage() {
   const layerCorridorRef = useRef<any>(null)
   const [mapReady, setMapReady]         = useState(false)
   const [showVessels, setShowVessels]   = useState(false)
-  const [activeTab, setActiveTab] = useState<"uxo" | "weather">("uxo")
+  const [activeTab, setActiveTab] = useState<"uxo" | "weather" | "alarp">("uxo")
+  const [alarpData, setAlarpData] = useState<any[]>([])
+  const [alarpLoading, setAlarpLoading] = useState(false)
+  const [alarpError, setAlarpError] = useState<string | null>(null)
+  const [alarpSelected, setAlarpSelected] = useState<any | null>(null)
   const [weatherTab, setWeatherTab] = useState<string>("geo3")
   const [weatherData, setWeatherData] = useState<Record<string, any[]>>({})
   const [weatherLoading, setWeatherLoading] = useState(false)
@@ -352,6 +356,20 @@ export default function MapPage() {
 
     return () => clearTimeout(timer)
   }, [activeTab, weatherFetched])
+
+  useEffect(() => {
+    if (activeTab !== "alarp" || alarpData.length > 0) return
+    setAlarpLoading(true)
+    setAlarpError(null)
+    fetch("/api/alarp")
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error)
+        setAlarpData(data)
+      })
+      .catch(e => setAlarpError(e.message))
+      .finally(() => setAlarpLoading(false))
+  }, [activeTab])
 
   // AIS useEffect
   useEffect(() => {
@@ -611,13 +629,13 @@ export default function MapPage() {
 
         {/* TABS */}
         <div style={{ display: "flex", borderBottom: "1px solid #1e2f3e", background: "#0f1923", flexShrink: 0 }}>
-          {(["uxo", "weather"] as const).map(tab => (
+          {(["uxo", "weather", "alarp"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               background: "none", border: "none", borderBottom: activeTab === tab ? "2px solid #378ADD" : "2px solid transparent",
               color: activeTab === tab ? "#fff" : "#4a6070", cursor: "pointer", fontSize: 12, fontWeight: 500,
               padding: "8px 20px", letterSpacing: "0.05em", textTransform: "uppercase" as const,
             }}>
-              {tab === "uxo" ? "🗺 UXO Mapa" : "🌊 Prognoza"}
+              {tab === "uxo" ? "🗺 UXO Mapa" : tab === "weather" ? "🌊 Prognoza" : "⚠️ ALARP Map"}
             </button>
           ))}
         </div>
@@ -833,6 +851,127 @@ export default function MapPage() {
             </div>
           )}
         </div>
+
+        {/* ALARP MAP PANEL */}
+        {activeTab === "alarp" && (
+          <div style={{ flex: 1, display: "flex", overflow: "hidden", background: "#0f1923" }}>
+            {/* MAPA */}
+            <div style={{ flex: 1, position: "relative" as const }}>
+              {alarpLoading && (
+                <div style={{ position: "absolute", inset: 0, background: "rgba(15,25,35,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, color: "#6b9ab8", fontSize: 14 }}>
+                  Ładowanie danych ALARP…
+                </div>
+              )}
+              {alarpError && (
+                <div style={{ position: "absolute", top: 16, left: 16, zIndex: 1000, background: "#2f1a1a", border: "1px solid #E24B4A", borderRadius: 6, padding: "10px 16px", color: "#E24B4A", fontSize: 13 }}>
+                  {alarpError}
+                </div>
+              )}
+              <div id="alarp-map" style={{ width: "100%", height: "100%" }}/>
+            </div>
+
+            {/* PANEL SZCZEGÓŁÓW */}
+            <div style={{ width: 320, background: "#0d1f2d", borderLeft: "1px solid #1e3448", overflowY: "auto", flexShrink: 0 }}>
+              {/* STATYSTYKI */}
+              <div style={{ padding: "16px", borderBottom: "1px solid #1e3448" }}>
+                <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>
+                  Documentation Status
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    { label: "Final", color: "#639922", count: alarpData.filter(d => d.docStatus === "Final").length },
+                    { label: "IFR", color: "#378ADD", count: alarpData.filter(d => d.docStatus === "IFR").length },
+                    { label: "Incomplete", color: "#EF9F27", count: alarpData.filter(d => d.docStatus === "Incomplete").length },
+                    { label: "Missing", color: "#E24B4A", count: alarpData.filter(d => d.docStatus === "Missing").length },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: "#0f1923", borderRadius: 6, padding: "8px 10px", borderLeft: `3px solid ${s.color}` }}>
+                      <div style={{ color: s.color, fontSize: 18, fontWeight: 500 }}>{s.count}</div>
+                      <div style={{ color: "#4a6070", fontSize: 10 }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SZCZEGÓŁY WYBRANEGO PUNKTU */}
+              {alarpSelected ? (
+                <div style={{ padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                    <div>
+                      <div style={{ color: "#fff", fontSize: 15, fontWeight: 500 }}>{alarpSelected.id}</div>
+                      <div style={{ color: "#4a6070", fontSize: 11, marginTop: 2 }}>{alarpSelected.type} · Sektor {alarpSelected.sector}</div>
+                    </div>
+                    <button onClick={() => setAlarpSelected(null)} style={{ background: "none", border: "none", color: "#4a6070", fontSize: 16, cursor: "pointer" }}>✕</button>
+                  </div>
+
+                  {/* Doc Status */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Dokumentacja</div>
+                    {[
+                      { label: "ALARP 1", value: alarpSelected.alarp_1, rev: alarpSelected.alarp1Rev },
+                      { label: "ALARP 2", value: alarpSelected.alarp_2, rev: alarpSelected.alarp2Rev },
+                      ...(alarpSelected.puxo > 0 ? [{ label: "TIR", value: alarpSelected.tir, rev: alarpSelected.tirRev }] : []),
+                    ].map(doc => {
+                      const color = doc.rev === "Final" ? "#639922" : doc.rev === "IFR" ? "#378ADD" : "#E24B4A"
+                      return (
+                        <div key={doc.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1a2f42" }}>
+                          <span style={{ fontSize: 11, color: "#6b9ab8" }}>{doc.label}</span>
+                          <span style={{ fontSize: 11, color, fontWeight: 500 }}>{doc.rev ?? "N/A"}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Geohazardy */}
+                  <div>
+                    <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Geohazardy</div>
+                    {[
+                      { label: "pUXO", value: alarpSelected.puxo, removed: alarpSelected.removed, status: alarpSelected.puxoStatus },
+                      { label: "Boulders", value: alarpSelected.boulders },
+                      { label: "Slope", value: alarpSelected.slope },
+                      { label: "Assets", value: alarpSelected.assets },
+                    ].map(h => {
+                      const hasHazard = (h.value ?? 0) > 0
+                      const color = !hasHazard ? "#639922" : h.status === "clear" ? "#639922" : h.status === "partial" ? "#EF9F27" : "#E24B4A"
+                      const pct = !hasHazard ? 100 : h.status === "clear" ? 100 : h.status === "partial" ? 50 : 0
+                      return (
+                        <div key={h.label} style={{ marginBottom: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
+                            <span style={{ fontSize: 11, color, fontWeight: 500 }}>
+                              {!hasHazard ? "Clear" : h.status === "clear" ? "Removed" : h.status === "partial" ? `Partial (${h.removed}/${h.value})` : `Hazard (${h.value})`}
+                            </span>
+                          </div>
+                          <div style={{ height: 4, background: "#1a2f42", borderRadius: 2, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 2 }}/>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: 16 }}>
+                  <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Odwierty</div>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
+                    {alarpData.map(d => {
+                      const color = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
+                      return (
+                        <div key={d.id} onClick={() => setAlarpSelected(d)}
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderRadius: 4, background: "#0f1923", cursor: "pointer", borderLeft: `3px solid ${color}` }}>
+                          <div>
+                            <div style={{ fontSize: 11, color: "#c8dae8", fontWeight: 500 }}>{d.id}</div>
+                            <div style={{ fontSize: 10, color: "#4a6070" }}>{d.type} · S{d.sector}</div>
+                          </div>
+                          <span style={{ fontSize: 10, color, fontWeight: 500 }}>{d.docStatus}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* WEATHER PANEL */}
         {activeTab === "weather" && (
