@@ -102,6 +102,8 @@ export function enrichRecord(r: FugroRecord) {
     overallRisk = "green"
   }
 
+  const noData = !r.alarp_1 && !r.alarp_2
+
   return {
     ...r,
     alarp1Rev,
@@ -111,6 +113,7 @@ export function enrichRecord(r: FugroRecord) {
     docStatus,
     slopeRisk,
     overallRisk,
+    noData,
   }
 }
 
@@ -130,7 +133,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     )
     if (!r.ok) throw new Error(`Supabase error ${r.status}`)
     const data: FugroRecord[] = await r.json()
-    const enriched = data.map(r => {
+    const enriched = data
+      .filter(r => r.sector?.toLowerCase() !== "onshore")
+      .map(r => {
       const [lng, lat] = proj4("EPSG:2180", "EPSG:4326", [r.xcoord, r.ycoord])
       return { ...enrichRecord(r), lat, lng }
     })

@@ -411,11 +411,14 @@ export default function MapPage() {
       if (!lat || !lng) return
       const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : d.overallRisk === "yellow" ? "#EF9F27" : "#639922"
       const color = riskColor
+      const markerHtml = d.noData
+        ? `<div style="width:14px;height:14px;border-radius:50%;background:white;border:2px solid black;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
+        : `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
       const icon = L.divIcon({
         className: "",
         iconSize: [14, 14],
         iconAnchor: [7, 7],
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
+        html: markerHtml
       })
       const marker = L.marker([lat, lng], { icon })
       marker.bindTooltip(`${d.id} · ${d.docStatus}`, { permanent: false, direction: "top", offset: [0, -8] })
@@ -1014,7 +1017,33 @@ export default function MapPage() {
                       { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
                       { label: "Assets", value: alarpSelected.assets },
                     ].map(h => {
-                      // Slope używa risk score
+                      if (alarpSelected.noData) {
+                        return (
+                          <div key={h.label} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
+                              <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>TBC</span>
+                            </div>
+                            <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #fff" }}/>
+                          </div>
+                        )
+                      }
+                      return null
+                    }).filter(Boolean).length > 0 ? [
+                      { label: "pUXO", value: alarpSelected.puxo, removed: alarpSelected.removed, status: alarpSelected.puxoStatus },
+                      { label: "Boulders", value: alarpSelected.boulders },
+                      { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
+                      { label: "Assets", value: alarpSelected.assets },
+                    ].map(h => {
+                      if (alarpSelected.noData) return (
+                        <div key={h.label} style={{ marginBottom: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
+                            <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>TBC</span>
+                          </div>
+                          <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #4a6070" }}/>
+                        </div>
+                      )
                       if (h.label === "Slope") {
                         // Slope zależy od alarp_2 — jeśli brak, TBC
                         const hasAlarp2 = !!alarpSelected.alarp_2
