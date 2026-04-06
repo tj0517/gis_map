@@ -1012,9 +1012,9 @@ export default function MapPage() {
                     <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Geohazardy</div>
                     {[
                       { label: "pUXO", value: alarpSelected.puxo, removed: alarpSelected.removed, status: alarpSelected.puxoStatus },
-                      { label: "Boulders", value: alarpSelected.boulders },
+                      { label: "Boulders", value: alarpSelected.boulders, risk: alarpSelected.boulders > 0 ? 50 : 100 },
                       { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
-                      { label: "Assets", value: alarpSelected.assets },
+                      { label: "Assets", value: alarpSelected.assets, risk: (alarpSelected.assets ?? 0) > 0 ? 50 : 100 },
                     ].map(h => {
                       if (alarpSelected.noData) return (
                         <div key={h.label} style={{ marginBottom: 10 }}>
@@ -1055,6 +1055,24 @@ export default function MapPage() {
                         )
                       }
                       const hasHazard = (h.value ?? 0) > 0
+                      // Jeśli ma risk score (Boulders/Assets) — użyj go
+                      if (h.risk !== undefined && h.label !== "pUXO") {
+                        const pct = h.risk
+                        const color = pct >= 70 ? "#639922" : "#EF9F27"
+                        return (
+                          <div key={h.label} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
+                              <span style={{ fontSize: 11, color, fontWeight: 500 }}>
+                                {!hasHazard ? "Clear" : `Present (${h.value})`}
+                              </span>
+                            </div>
+                            <div style={{ height: 8, background: "#1a2f42", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, transition: "width 0.3s ease" }}/>
+                            </div>
+                          </div>
+                        )
+                      }
                       const color = !hasHazard ? "#639922" : h.status === "clear" ? "#639922" : h.status === "partial" ? "#EF9F27" : "#E24B4A"
                       const pct = !hasHazard ? 100 : h.status === "clear" ? 100 : h.status === "partial" ? 50 : 0
                       return (
