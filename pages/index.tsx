@@ -421,7 +421,7 @@ export default function MapPage() {
         html: markerHtml
       })
       const marker = L.marker([lat, lng], { icon })
-      marker.bindTooltip(`${d.id} · ${d.docStatus}`, { permanent: false, direction: "top", offset: [0, -8] })
+      marker.bindTooltip(d.id, { permanent: false, direction: "top", offset: [0, -8] })
       marker.on("click", () => setAlarpSelected(d))
       marker.addTo(alarpMapRef.current)
       alarpMarkersRef.current.set(d.id, marker)
@@ -1103,8 +1103,9 @@ export default function MapPage() {
                           setAlarpSelected(d)
                           const marker = alarpMarkersRef.current.get(d.id)
                           if (marker && alarpMapRef.current) {
+                            alarpMarkersRef.current.forEach(m => m.closeTooltip())
                             alarpMapRef.current.setView([d.lat, d.lng], 16, { animate: true })
-                            marker.openTooltip()
+                            setTimeout(() => marker.openTooltip(), 400)
                           }
                         }}
                           style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderRadius: 4, background: "#0f1923", cursor: "pointer", borderLeft: `3px solid ${riskColor}` }}>
