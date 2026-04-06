@@ -984,16 +984,28 @@ export default function MapPage() {
                       { label: "Assets", value: alarpSelected.assets },
                     ].map(h => {
                       // Slope używa risk score
-                      if (h.label === "Slope" && h.risk !== undefined) {
+                      if (h.label === "Slope") {
+                        // Slope zależy od alarp_2 — jeśli brak, TBC
+                        const hasAlarp2 = !!alarpSelected.alarp_2
+                        if (!hasAlarp2) {
+                          return (
+                            <div key={h.label} style={{ marginBottom: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: "#a0b4c4" }}>Slope</span>
+                                <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>TBC</span>
+                              </div>
+                              <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #fff", overflow: "hidden" }}/>
+                            </div>
+                          )
+                        }
                         const pct = h.risk ?? 100
                         const color = pct >= 70 ? "#639922" : pct >= 40 ? "#EF9F27" : pct >= 20 ? "#FB923C" : "#E24B4A"
+                        const criterion = h.value === null || h.value <= 1 ? "≤1°" : h.value <= 2 ? "≤2°" : h.value <= 3 ? "≤3°" : h.value <= 4 ? "≤4°" : h.value <= 5 ? "≤5°" : ">5°"
                         return (
                           <div key={h.label} style={{ marginBottom: 10 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                               <span style={{ fontSize: 11, color: "#a0b4c4" }}>Slope</span>
-                              <span style={{ fontSize: 11, color, fontWeight: 500 }}>
-                                {h.value ?? 0}° · {pct}%
-                              </span>
+                              <span style={{ fontSize: 11, color, fontWeight: 500 }}>{criterion}</span>
                             </div>
                             <div style={{ height: 8, background: "#1a2f42", borderRadius: 4, overflow: "hidden" }}>
                               <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, transition: "width 0.3s ease" }}/>
