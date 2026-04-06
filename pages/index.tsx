@@ -107,6 +107,9 @@ export default function MapPage() {
   const [alarpLoading, setAlarpLoading] = useState(false)
   const [alarpError, setAlarpError] = useState<string | null>(null)
   const [alarpSelected, setAlarpSelected] = useState<any | null>(null)
+  const alarpMapRef = useRef<any>(null)
+  const alarpMapDivRef = useRef<HTMLDivElement>(null)
+  const alarpMarkersRef = useRef<Map<string, any>>(new Map())
   const [weatherTab, setWeatherTab] = useState<string>("geo3")
   const [weatherData, setWeatherData] = useState<Record<string, any[]>>({})
   const [weatherLoading, setWeatherLoading] = useState(false)
@@ -370,6 +373,56 @@ export default function MapPage() {
       .catch(e => setAlarpError(e.message))
       .finally(() => setAlarpLoading(false))
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== "alarp") return
+    if (!L) return
+    setTimeout(() => {
+      const container = document.getElementById("alarp-map")
+      if (!container) return
+      if ((container as any)._leaflet_id) return
+
+      const map = L.map(container, { center: [54.84, 17.79], zoom: 13, zoomControl: true })
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors", maxZoom: 19,
+      }).addTo(map)
+      L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {
+        attribution: "© OpenSeaMap contributors", maxZoom: 18, opacity: 0.7,
+      }).addTo(map)
+
+      // Dodaj warstwy GeoJSON
+      if (layerGeo3Ref.current) layerGeo3Ref.current.addTo(map)
+      if (layerSectorsRef.current) layerSectorsRef.current.addTo(map)
+      if (layerCorridorRef.current) layerCorridorRef.current.addTo(map)
+
+      alarpMapRef.current = map
+    }, 100)
+  }, [activeTab, L])
+
+  useEffect(() => {
+    if (!alarpMapRef.current || !L || alarpData.length === 0) return
+    alarpMarkersRef.current.forEach(m => alarpMapRef.current.removeLayer(m))
+    alarpMarkersRef.current.clear()
+
+    alarpData.forEach(d => {
+      if (!d.xcoord || !d.ycoord) return
+      const lat = d.lat
+      const lng = d.lng
+      if (!lat || !lng) return
+      const color = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
+      const icon = L.divIcon({
+        className: "",
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
+      })
+      const marker = L.marker([lat, lng], { icon })
+      marker.bindTooltip(`${d.id} · ${d.docStatus}`, { permanent: false, direction: "top", offset: [0, -8] })
+      marker.on("click", () => setAlarpSelected(d))
+      marker.addTo(alarpMapRef.current)
+      alarpMarkersRef.current.set(d.id, marker)
+    })
+  }, [alarpData, alarpMapRef.current])
 
   // AIS useEffect
   useEffect(() => {

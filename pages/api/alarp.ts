@@ -1,6 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import { getServerSession } from "next-auth"
 import { authOptions } from "./auth/[...nextauth]"
+import proj4 from "proj4"
+proj4.defs("EPSG:2180", "+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 
 export interface FugroRecord {
   id: string
@@ -88,7 +90,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     )
     if (!r.ok) throw new Error(`Supabase error ${r.status}`)
     const data: FugroRecord[] = await r.json()
-    const enriched = data.map(enrichRecord)
+    const enriched = data.map(r => {
+      const [lng, lat] = proj4("EPSG:2180", "EPSG:4326", [r.xcoord, r.ycoord])
+      return { ...enrichRecord(r), lat, lng }
+    })
     res.status(200).json(enriched)
   } catch (e: any) {
     res.status(500).json({ error: e.message })
