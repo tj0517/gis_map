@@ -1099,7 +1099,14 @@ export default function MapPage() {
                       const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
                       const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
-                        <div key={d.id} onClick={() => setAlarpSelected(d)}
+                        <div key={d.id} onClick={() => {
+                          setAlarpSelected(d)
+                          const marker = alarpMarkersRef.current.get(d.id)
+                          if (marker && alarpMapRef.current) {
+                            alarpMapRef.current.setView([d.lat, d.lng], 16, { animate: true })
+                            marker.openTooltip()
+                          }
+                        }}
                           style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderRadius: 4, background: "#0f1923", cursor: "pointer", borderLeft: `3px solid ${riskColor}` }}>
                           <div>
                             <div style={{ fontSize: 11, color: "#c8dae8", fontWeight: 500 }}>{d.id}</div>
