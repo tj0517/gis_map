@@ -409,7 +409,7 @@ export default function MapPage() {
       const lat = d.lat
       const lng = d.lng
       if (!lat || !lng) return
-      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : d.overallRisk === "yellow" ? "#EF9F27" : "#639922"
+      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
       const color = riskColor
       const markerHtml = d.noData
         ? `<div style="width:14px;height:14px;border-radius:50%;background:white;border:2px solid black;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
@@ -954,8 +954,7 @@ export default function MapPage() {
                 <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Geohazard Risk Legend</div>
                 {[
                   { color: "#E24B4A", label: "pUXO present — not cleared" },
-                  { color: "#FB923C", label: "pUXO partially cleared / Assets present" },
-                  { color: "#EF9F27", label: "Boulders present / Slope >3°" },
+                  { color: "#FB923C", label: "Assets present" },
                   { color: "#639922", label: "No significant geohazards" },
                 ].map(l => (
                   <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
@@ -1079,7 +1078,7 @@ export default function MapPage() {
                   <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Geotechnical Sites</div>
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                     {alarpData.map(d => {
-                      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : d.overallRisk === "yellow" ? "#EF9F27" : "#639922"
+                      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
                       const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
                         <div key={d.id} onClick={() => setAlarpSelected(d)}
