@@ -52,7 +52,8 @@ export function enrichRecord(r: FugroRecord) {
   if (isOnshore) {
     // Onshore: tylko alarp_1 wymagane
     if (alarp1Rev === "Final") {
-      docStatus = r.puxo > 0 && tirRev !== "Final" ? "Incomplete" : "Final"
+      const tirOk = r.puxo === 0 || tirRev === "Final" || tirRev === "IFR"
+      docStatus = !tirOk ? "Incomplete" : "Final"
     } else if (alarp1Rev === "IFR") {
       docStatus = "IFR"
     } else {
@@ -65,7 +66,8 @@ export function enrichRecord(r: FugroRecord) {
     } else if (alarp2Rev === "IFR") {
       docStatus = "IFR"
     } else if (alarp2Rev === "Final" && alarp1Rev === "Final") {
-      if (r.puxo > 0 && tirRev !== "Final") {
+      const tirOk = r.puxo === 0 || tirRev === "Final" || tirRev === "IFR"
+      if (!tirOk) {
         docStatus = "Incomplete"
       } else {
         docStatus = "Final"
