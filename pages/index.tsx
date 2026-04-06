@@ -928,7 +928,7 @@ export default function MapPage() {
               {/* STATYSTYKI */}
               <div style={{ padding: "16px", borderBottom: "1px solid #1e3448" }}>
                 <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>
-                  Documentation Status
+                  ALARP Documentation Status
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {[

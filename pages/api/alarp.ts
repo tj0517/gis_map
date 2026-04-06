@@ -40,29 +40,40 @@ function getPuxoStatus(puxo: number, removed: number): "clear" | "partial" | "ha
 export function enrichRecord(r: FugroRecord) {
   const alarp1Rev = getRevision(r.alarp_1)
   const alarp2Rev = getRevision(r.alarp_2)
+  // TIR liczy się tylko gdy puxo > 0
   const tirRev = r.puxo > 0 ? getRevision(r.tir) : null
   const puxoStatus = getPuxoStatus(r.puxo, r.removed)
 
-  const docsRequired = ["alarp_1", ...(r.alarp_2 !== null ? ["alarp_2"] : []), ...(r.puxo > 0 ? ["tir"] : [])]
-  const docsFinal = [
-    alarp1Rev === "Final",
-    ...(r.alarp_2 !== null ? [alarp2Rev === "Final"] : []),
-    ...(r.puxo > 0 ? [tirRev === "Final"] : []),
-  ]
-  const docsIFR = [
-    alarp1Rev === "IFR",
-    ...(r.alarp_2 !== null ? [alarp2Rev === "IFR"] : []),
-    ...(r.puxo > 0 ? [tirRev === "IFR"] : []),
-  ]
-
-  const allFinal = docsFinal.every(Boolean)
-  const anyIFR = docsIFR.some(Boolean)
-  const anyMissing = [alarp1Rev, ...(r.alarp_2 !== null ? [alarp2Rev] : []), ...(r.puxo > 0 && tirRev ? [tirRev] : [])].some(v => v === "Missing")
+  const isOnshore = r.sector?.toLowerCase() === "onshore"
+  const alarp2Required = !isOnshore
 
   let docStatus: "Final" | "IFR" | "Incomplete" | "Missing"
-  if (allFinal) docStatus = "Final"
-  else if (anyIFR && !anyMissing) docStatus = "IFR"
-  else docStatus = anyMissing ? "Missing" : "Incomplete"
+
+  if (isOnshore) {
+    // Onshore: tylko alarp_1 wymagane
+    if (alarp1Rev === "Final") {
+      docStatus = r.puxo > 0 && tirRev !== "Final" ? "Incomplete" : "Final"
+    } else if (alarp1Rev === "IFR") {
+      docStatus = "IFR"
+    } else {
+      docStatus = "Missing"
+    }
+  } else {
+    // Offshore: alarp_1 + alarp_2 wymagane
+    if (r.alarp_2 === null || alarp2Rev === "Missing") {
+      docStatus = "Missing"
+    } else if (alarp2Rev === "IFR") {
+      docStatus = "IFR"
+    } else if (alarp2Rev === "Final" && alarp1Rev === "Final") {
+      if (r.puxo > 0 && tirRev !== "Final") {
+        docStatus = "Incomplete"
+      } else {
+        docStatus = "Final"
+      }
+    } else {
+      docStatus = "Incomplete"
+    }
+  }
 
   return {
     ...r,
