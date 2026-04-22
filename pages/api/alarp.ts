@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next"
 import { getServerSession } from "next-auth"
 import { authOptions } from "./auth/[...nextauth]"
 import proj4 from "proj4"
+import { fetchPuxoFeatures } from "../../lib/fetchPuxoData"
 proj4.defs("EPSG:2180", "+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 
 export interface FugroRecord {
@@ -115,18 +116,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session) return res.status(401).json({ error: "Unauthorized" })
 
   try {
-    // 1. Fetch live pUXO statuses from SharePoint (reuse /api/data logic)
-    const dataUrl = `${req.headers.host?.startsWith("localhost") ? "http" : "https"}://${req.headers.host}/api/data`
-    const dataRes = await fetch(dataUrl)
-    const dataJson = await dataRes.json()
+    // 1. Fetch live pUXO statuses directly from SharePoint (app-only, no HTTP round-trip)
+    const puxoFeatures = await fetchPuxoFeatures()
     const removedPuxoIds = new Set<string>(
-      (dataJson.features ?? [])
-        .filter((f: any) => {
+      puxoFeatures
+        .filter(f => {
           const status = f.properties?.status
           const type = f.properties?.type
           return status === "Removed" || (status === "Inspected" && type === "Not found")
         })
-        .map((f: any) => f.properties.id)
+        .map(f => f.properties.id)
     )
 
     // 2. Fetch helper table pUXO_vs_GEO_boxes (only ID_pUXO and ID_2)
