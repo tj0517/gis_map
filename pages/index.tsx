@@ -1015,6 +1015,20 @@ export default function MapPage() {
                       { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
                       { label: "Assets", value: alarpSelected.assets, risk: (alarpSelected.assets ?? 0) > 0 ? 50 : 100 },
                     ].map(h => {
+                      // When alarp_1 is missing, all bars show TBC
+                      if (!alarpSelected.alarp_1 || String(alarpSelected.alarp_1).trim() === "") {
+                        return (
+                          <div key={h.label} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
+                              <span style={{ fontSize: 11, color: "#6b9ab8", fontWeight: 500 }}>TBC</span>
+                            </div>
+                            <div style={{ height: 8, background: "#1a2f42", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: "0%", background: "#4a6070", borderRadius: 4 }}/>
+                            </div>
+                          </div>
+                        )
+                      }
                       if (h.label === "Slope") {
                         // Slope zależy od alarp_2 — jeśli brak, TBC
                         const hasAlarp2 = !!alarpSelected.alarp_2
