@@ -410,8 +410,8 @@ export default function MapPage() {
       const lng = d.lng
       if (!lat || !lng) return
       const riskColor = d.overallRisk === "white" ? "#ffffff" : d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
-      const borderColor = d.overallRisk === "white" ? "#000000" : riskColor
-      const markerHtml = `<div style="width:14px;height:14px;border-radius:50%;background:${riskColor};border:2px solid ${borderColor};box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
+      const borderColor = "#000000"
+      const markerHtml = `<div style="width:14px;height:14px;border-radius:50%;background:${riskColor};border:1px solid ${borderColor};box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
       const icon = L.divIcon({
         className: "",
         iconSize: [14, 14],
