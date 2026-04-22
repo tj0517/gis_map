@@ -89,9 +89,11 @@ export function enrichRecord(r: FugroRecord) {
 
   const slopeRisk = getSlopeRisk(r.slope)
 
-  // Overall geohazard risk — hierarchia: pUXO > assets > green
-  let overallRisk: "red" | "orange" | "green"
-  if (r.puxo > 0 && r.removed < r.puxo) {
+  // Overall geohazard risk — hierarchia: white (no ALARP_1) > red (pUXO) > orange (assets) > green
+  let overallRisk: "white" | "red" | "orange" | "green"
+  if (!r.alarp_1 || String(r.alarp_1).trim() === "") {
+    overallRisk = "white"
+  } else if (r.puxo > 0 && r.removed < r.puxo) {
     overallRisk = "red"
   } else if ((r.assets ?? 0) > 0) {
     overallRisk = "orange"
