@@ -115,6 +115,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session) return res.status(401).json({ error: "Unauthorized" })
 
   try {
+    // 1. Fetch live pUXO statuses from SharePoint (reuse /api/data logic)
+    const dataUrl = `${req.headers.host?.startsWith("localhost") ? "http" : "https"}://${req.headers.host}/api/data`
+    const dataRes = await fetch(dataUrl)
+    const dataJson = await dataRes.json()
+    const removedPuxoIds = new Set<string>(
+      (dataJson.features ?? [])
+        .filter((f: any) => f.properties?.status === "Removed")
+        .map((f: any) => f.properties.id)
+    )
+
+    // 2. Fetch helper table pUXO_vs_GEO_boxes (only ID_pUXO and ID_2)
+    const boxesRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/pUXO_vs_GEO_boxes?select=ID_pUXO,ID_2`,
+      {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+      }
+    )
+    const boxes: Array<{ ID_pUXO: string; ID_2: string }> = await boxesRes.json()
+
+    // 3. Aggregate removed count per geotechnical site
+    const removedBySite = new Map<string, number>()
+    for (const box of boxes) {
+      if (removedPuxoIds.has(box.ID_pUXO)) {
+        removedBySite.set(box.ID_2, (removedBySite.get(box.ID_2) ?? 0) + 1)
+      }
+    }
+
+    // 4. UPDATE FUGRO_GEO_Dashboard_rev1.removed for each site
+    const updatePromises: Promise<Response>[] = Array.from(removedBySite).map(([siteId, removedCount]) =>
+      fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/FUGRO_GEO_Dashboard_rev1?id=eq.${encodeURIComponent(siteId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ removed: removedCount }),
+        }
+      )
+    )
+    await Promise.all(updatePromises)
+    console.log(`[ALARP] Updated removed count for ${removedBySite.size} sites`)
+
     const r = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/FUGRO_GEO_Dashboard_rev1?select=id,type,xcoord,ycoord,alarp_1,alarp_2,tir,puxo,removed,risk_puxo,boulders,slope,assets,sector&order=id`,
       {

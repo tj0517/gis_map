@@ -913,7 +913,7 @@ export default function MapPage() {
             <div style={{ flex: 1, position: "relative" as const }}>
               {alarpLoading && (
                 <div style={{ position: "absolute", inset: 0, background: "rgba(15,25,35,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, color: "#6b9ab8", fontSize: 14 }}>
-                  Ładowanie danych ALARP…
+                  Synchronizing pUXO removal status…
                 </div>
               )}
               {alarpError && (
