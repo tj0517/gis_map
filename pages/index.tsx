@@ -410,10 +410,7 @@ export default function MapPage() {
       const lng = d.lng
       if (!lat || !lng) return
       const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
-      const color = riskColor
-      const markerHtml = d.noData
-        ? `<div style="width:14px;height:14px;border-radius:50%;background:white;border:2px solid black;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
-        : `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
+      const markerHtml = `<div style="width:14px;height:14px;border-radius:50%;background:${riskColor};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>`
       const icon = L.divIcon({
         className: "",
         iconSize: [14, 14],
@@ -1016,15 +1013,6 @@ export default function MapPage() {
                       { label: "Slope", value: alarpSelected.slope, risk: alarpSelected.slopeRisk },
                       { label: "Assets", value: alarpSelected.assets, risk: (alarpSelected.assets ?? 0) > 0 ? 50 : 100 },
                     ].map(h => {
-                      if (alarpSelected.noData) return (
-                        <div key={h.label} style={{ marginBottom: 10 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 11, color: "#a0b4c4" }}>{h.label}</span>
-                            <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>TBC</span>
-                          </div>
-                          <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #4a6070" }}/>
-                        </div>
-                      )
                       if (h.label === "Slope") {
                         // Slope zależy od alarp_2 — jeśli brak, TBC
                         const hasAlarp2 = !!alarpSelected.alarp_2
@@ -1096,7 +1084,7 @@ export default function MapPage() {
                   <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Geotechnical Sites</div>
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                     {alarpData.map(d => {
-                      const riskColor = d.noData ? "#ffffff" : d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
+                      const riskColor = d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
                       const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
                         <div key={d.id} onClick={() => {

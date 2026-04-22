@@ -98,8 +98,6 @@ export function enrichRecord(r: FugroRecord) {
     overallRisk = "green"
   }
 
-  const noData = !r.alarp_1 && !r.alarp_2
-
   return {
     ...r,
     alarp1Rev,
@@ -109,7 +107,6 @@ export function enrichRecord(r: FugroRecord) {
     docStatus,
     slopeRisk,
     overallRisk,
-    noData,
   }
 }
 
