@@ -121,7 +121,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dataJson = await dataRes.json()
     const removedPuxoIds = new Set<string>(
       (dataJson.features ?? [])
-        .filter((f: any) => f.properties?.status === "Removed")
+        .filter((f: any) => {
+          const status = f.properties?.status
+          const type = f.properties?.type
+          return status === "Removed" || (status === "Inspected" && type === "Not found")
+        })
         .map((f: any) => f.properties.id)
     )
 
