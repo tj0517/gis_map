@@ -121,6 +121,7 @@ export default function MapPage() {
   const alarpMapDivRef = useRef<HTMLDivElement>(null)
   const alarpMarkersRef = useRef<Map<string, any>>(new Map())
   const alarpPuxoBufferRef = useRef<any>(null)
+  const alarpCablesBufferRef = useRef<any>(null)
   const [weatherTab, setWeatherTab] = useState<string>("geo3")
   const [weatherData, setWeatherData] = useState<Record<string, any[]>>({})
   const [weatherLoading, setWeatherLoading] = useState(false)
@@ -414,6 +415,16 @@ export default function MapPage() {
         })
         alarpPuxoBufferRef.current = bufferLayer
         bufferLayer.addTo(map)
+      }).catch(() => {})
+
+      // Cables 25m safety buffers
+      fetch("/layers/Cables_25m_buffer_ply.geojson").then(r => r.json()).then(data => {
+        const cablesLayer = L.geoJSON(data, {
+          style: { fillColor: "#FB923C", fillOpacity: 0.25, color: "#FB923C", weight: 1, opacity: 0.6 },
+          interactive: false,
+        })
+        alarpCablesBufferRef.current = cablesLayer
+        cablesLayer.addTo(map)
       }).catch(() => {})
 
       alarpMapRef.current = map
