@@ -796,6 +796,7 @@ export default function MapPage() {
                   const tirsCount = geojson.features.filter(f => f.properties.sector === sector && (f.properties as any).tir).length
                   const pct   = total === 0 ? 0 : Math.round((done / total) * 100)
                   const color = pct === 100 ? "#639922" : pct > 0 ? "#EF9F27" : "#4a6070"
+                  const tirsColor = tirsCount === 0 ? "#6b9ab8" : tirsCount === total ? "#639922" : "#EF9F27"
                   return (
                     <div key={sector} style={{ marginBottom: 6 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
@@ -807,7 +808,7 @@ export default function MapPage() {
                       <div style={{ height: 5, background: "#1a2f42", borderRadius: 3, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.4s ease" }}/>
                       </div>
-                      <div style={{ fontSize: 9, color: "#6b9ab8", marginTop: 2, textAlign: "right" as const }}>
+                      <div style={{ fontSize: 9, color: tirsColor, marginTop: 2, textAlign: "right" as const, fontWeight: 500 }}>
                         {tirsCount}/{total} TIRs
                       </div>
                     </div>
