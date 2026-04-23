@@ -70,6 +70,7 @@ export interface UXOFeature {
     type: string
     status: string
     comment: string | null
+    tir: string | null
   }
 }
 
@@ -150,6 +151,7 @@ function parseExcelToFeatures(buffer: Buffer): UXOFeature[] {
         type,
         status:        normalizedStatus,
         comment:       row["COMMENT"]    ?? null,
+        tir:           row["TIR"]        ?? null,
       },
     })
   }

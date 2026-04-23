@@ -793,6 +793,7 @@ export default function MapPage() {
                 return sectorList.map(sector => {
                   const total = geojson.features.filter(f => f.properties.sector === sector).length
                   const done  = geojson.features.filter(f => f.properties.sector === sector && (f.properties.status === "Inspected" || f.properties.status === "Removed")).length
+                  const tirsCount = geojson.features.filter(f => f.properties.sector === sector && (f.properties as any).tir).length
                   const pct   = total === 0 ? 0 : Math.round((done / total) * 100)
                   const color = pct === 100 ? "#639922" : pct > 0 ? "#EF9F27" : "#4a6070"
                   return (
@@ -805,6 +806,9 @@ export default function MapPage() {
                       </div>
                       <div style={{ height: 5, background: "#1a2f42", borderRadius: 3, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.4s ease" }}/>
+                      </div>
+                      <div style={{ fontSize: 9, color: "#6b9ab8", marginTop: 2, textAlign: "right" as const }}>
+                        {tirsCount}/{total} TIRs
                       </div>
                     </div>
                   )
@@ -944,6 +948,7 @@ export default function MapPage() {
                 <DetailRow label="Altitude"   value={`${selected.properties.altitude} m`}/>
                 <DetailRow label="ID Mag"     value={selected.properties.idMag}/>
                 <DetailRow label="Inspected"  value={selected.properties.dateInspected ?? "—"}/>
+                <DetailRow label="ALARP"      value={(selected.properties as any).tir ?? "—"}/>
                 <DetailRow label="East"       value={selected.properties.east.toFixed(2)}/>
                 <DetailRow label="North"      value={selected.properties.north.toFixed(2)}/>
               </div>
