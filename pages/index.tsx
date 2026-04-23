@@ -120,6 +120,7 @@ export default function MapPage() {
   const alarpMapRef = useRef<any>(null)
   const alarpMapDivRef = useRef<HTMLDivElement>(null)
   const alarpMarkersRef = useRef<Map<string, any>>(new Map())
+  const alarpPuxoBufferRef = useRef<any>(null)
   const [weatherTab, setWeatherTab] = useState<string>("geo3")
   const [weatherData, setWeatherData] = useState<Record<string, any[]>>({})
   const [weatherLoading, setWeatherLoading] = useState(false)
@@ -404,6 +405,16 @@ export default function MapPage() {
       if (layerGeo3Ref.current) layerGeo3Ref.current.addTo(map)
       if (layerSectorsRef.current) layerSectorsRef.current.addTo(map)
       if (layerCorridorRef.current) layerCorridorRef.current.addTo(map)
+
+      // pUXO 25m safety buffers — added before site markers so markers render on top
+      fetch("/layers/pUXO_25m_buffer.geojson").then(r => r.json()).then(data => {
+        const bufferLayer = L.geoJSON(data, {
+          style: { fillColor: "#FB923C", fillOpacity: 0.25, color: "#FB923C", weight: 1, opacity: 0.6 },
+          interactive: false,
+        })
+        alarpPuxoBufferRef.current = bufferLayer
+        bufferLayer.addTo(map)
+      }).catch(() => {})
 
       alarpMapRef.current = map
     }, 100)
