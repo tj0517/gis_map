@@ -9,6 +9,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, R
 
 let L: any = null
 
+function normalizeBoreholeType(type: string | null | undefined): string {
+  if (!type) return ""
+  if (type === "CPT_FISH") return "CPT"
+  if (type === "SPT_FISH") return "SPT"
+  return type
+}
+
 const WEATHER_LOCATIONS = [
   { id: "geo3",       label: "GEO3",              lat: 54.84,    lng: 17.79    },
   { id: "leba",       label: "Port Łeba",         lat: 54.78525, lng: 17.56319 },
@@ -107,6 +114,9 @@ export default function MapPage() {
   const [alarpLoading, setAlarpLoading] = useState(false)
   const [alarpError, setAlarpError] = useState<string | null>(null)
   const [alarpSelected, setAlarpSelected] = useState<any | null>(null)
+  const [alarpTypeFilter, setAlarpTypeFilter] = useState<Set<string>>(
+    new Set(["CPT", "CCD", "CCD_OPT", "SPT", "SPT_OPT"])
+  )
   const alarpMapRef = useRef<any>(null)
   const alarpMapDivRef = useRef<HTMLDivElement>(null)
   const alarpMarkersRef = useRef<Map<string, any>>(new Map())
@@ -404,7 +414,9 @@ export default function MapPage() {
     alarpMarkersRef.current.forEach(m => alarpMapRef.current.removeLayer(m))
     alarpMarkersRef.current.clear()
 
-    alarpData.forEach(d => {
+    alarpData
+      .filter(d => alarpTypeFilter.has(normalizeBoreholeType(d.type)))
+      .forEach(d => {
       if (!d.xcoord || !d.ycoord) return
       const lat = d.lat
       const lng = d.lng
@@ -424,7 +436,7 @@ export default function MapPage() {
       marker.addTo(alarpMapRef.current)
       alarpMarkersRef.current.set(d.id, marker)
     })
-  }, [alarpData, alarpMapRef.current])
+  }, [alarpData, alarpTypeFilter, alarpMapRef.current])
 
   // AIS useEffect
   useEffect(() => {
@@ -638,6 +650,22 @@ export default function MapPage() {
   if (status === "loading" || status === "unauthenticated") {
     return <div style={styles.fullscreen}><div style={styles.spinner}/></div>
   }
+
+  const zoomToSector = (sectorName: string) => {
+    if (!alarpMapRef.current || !L) return
+    const sitesInSector = alarpData.filter(d => String(d.sector) === sectorName)
+    if (sitesInSector.length === 0) return
+    const lats = sitesInSector.map((d: any) => d.lat).filter((v: any) => typeof v === "number" && !isNaN(v))
+    const lngs = sitesInSector.map((d: any) => d.lng).filter((v: any) => typeof v === "number" && !isNaN(v))
+    if (lats.length === 0 || lngs.length === 0) return
+    const bounds = L.latLngBounds(
+      [Math.min(...lats), Math.min(...lngs)],
+      [Math.max(...lats), Math.max(...lngs)]
+    )
+    alarpMapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 })
+  }
+
+  const visibleAlarpData = alarpData.filter(d => alarpTypeFilter.has(normalizeBoreholeType(d.type)))
 
   const sectors = geojson
     ? ["ALL", ...Array.from(new Set(geojson.features.map(f => f.properties.sector))).sort()]
@@ -910,6 +938,59 @@ export default function MapPage() {
         {/* ALARP MAP PANEL */}
         {activeTab === "alarp" && (
           <div style={{ flex: 1, display: "flex", overflow: "hidden", background: "#0f1923" }}>
+            {/* LEFT TOOLS PANEL */}
+            <div style={{ width: 280, background: "#0d1f2d", borderRight: "1px solid #1e3448", overflowY: "auto" as const, flexShrink: 0 }}>
+              {/* SECTORS */}
+              <div style={{ padding: "16px", borderBottom: "1px solid #1e3448" }}>
+                <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>
+                  Sectors
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
+                  {["313","314","315","323","341","342","343","344","Fish_tunnel"].map(sectorName => (
+                    <button
+                      key={sectorName}
+                      onClick={() => zoomToSector(sectorName)}
+                      style={{ background: "#0f1923", border: "1px solid #1e3448", borderRadius: 6, padding: "7px 12px", color: "#a0b4c4", fontSize: 12, cursor: "pointer", textAlign: "left" as const, transition: "background 0.15s" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#162838")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "#0f1923")}
+                    >
+                      {sectorName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* BOREHOLE TYPES */}
+              <div style={{ padding: "16px" }}>
+                <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>
+                  Borehole Types
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                  {[
+                    { key: "CPT",     label: "CPT — Cone Penetration Test" },
+                    { key: "CCD",     label: "CCD — Continuous Core Drilling" },
+                    { key: "CCD_OPT", label: "CCD Optional" },
+                    { key: "SPT",     label: "SPT — Standard Penetration Test" },
+                    { key: "SPT_OPT", label: "SPT Optional" },
+                  ].map(({ key, label }) => (
+                    <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, color: "#a0b4c4", fontSize: 12, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={alarpTypeFilter.has(key)}
+                        onChange={e => {
+                          const next = new Set(alarpTypeFilter)
+                          if (e.target.checked) next.add(key)
+                          else next.delete(key)
+                          setAlarpTypeFilter(next)
+                        }}
+                        style={{ accentColor: "#378ADD" }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* MAPA */}
             <div style={{ flex: 1, position: "relative" as const }}>
               {alarpLoading && (
@@ -1099,7 +1180,7 @@ export default function MapPage() {
                 <div style={{ padding: 16 }}>
                   <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>Geotechnical Sites</div>
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                    {alarpData.map(d => {
+                    {visibleAlarpData.map(d => {
                       const riskColor = d.overallRisk === "white" ? "#ffffff" : d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
                       const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
