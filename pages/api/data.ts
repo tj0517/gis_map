@@ -25,9 +25,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const features = await fetchPuxoFeatures()
 
-    const inspected = features.filter(f => f.properties.status === "Inspected").length
-    const removed   = features.filter(f => f.properties.status === "Removed").length
-    const pending   = features.filter(f => f.properties.status === "pUXO").length
+    const inspected = features.filter(f => 
+  f.properties.status === "Inspected" || 
+  f.properties.status === "Removed" ||
+  f.properties.status === "Not found"
+).length
+const removed   = features.filter(f => f.properties.status === "Removed").length
+const pending   = features.filter(f => 
+  f.properties.status === "pUXO" || 
+  f.properties.status === "In progress" || 
+  f.properties.status === "Planned"
+).length
 
     const geojson: GeoJSON = {
       type: "FeatureCollection",
