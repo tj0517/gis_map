@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "ignoreDeprecations": "6.0",
-    "lib": [
+    "target": "es2020",
+      "lib": [
       "dom",
       "dom.iterable",
       "esnext"
