@@ -949,7 +949,7 @@ export default function MapPage() {
                 <DetailRow label="Altitude"   value={`${selected.properties.altitude} m`}/>
                 <DetailRow label="ID Mag"     value={selected.properties.idMag}/>
                 <DetailRow label="Inspected"  value={selected.properties.dateInspected ?? "—"}/>
-                <DetailRow label="ALARP"      value={(selected.properties as any).tir ?? "—"}/>
+                <DetailRow label="UXO ALARP (TIR)" value={(selected.properties as any).tir ?? "—"}/>
                 <DetailRow label="East"       value={selected.properties.east.toFixed(2)}/>
                 <DetailRow label="North"      value={selected.properties.north.toFixed(2)}/>
               </div>
@@ -1039,17 +1039,25 @@ export default function MapPage() {
               {/* STATYSTYKI */}
               <div style={{ padding: "16px", borderBottom: "1px solid #1e3448" }}>
                 <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12 }}>
-                  ALARP Documentation Status
+                  Documentation Status
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {[
-                    { label: "Final", color: "#639922", count: alarpData.filter(d => d.docStatus === "Final").length },
-                    { label: "IFR", color: "#378ADD", count: alarpData.filter(d => d.docStatus === "IFR").length },
-                    { label: "Incomplete", color: "#EF9F27", count: alarpData.filter(d => d.docStatus === "Incomplete").length },
-                    { label: "Missing", color: "#E24B4A", count: alarpData.filter(d => d.docStatus === "Missing").length },
+                    {
+                      label: "Geophysical ALARP issued",
+                      color: "#639922",
+                      count: alarpData.filter(d => d.alarp1Issued).length,
+                      total: alarpData.length,
+                    },
+                    {
+                      label: "UXO ALARP (TIR) issued",
+                      color: "#378ADD",
+                      count: geojson?.features?.filter(f => f.properties.tir && String(f.properties.tir).trim() !== "").length ?? 0,
+                      total: geojson?.features?.length ?? 0,
+                    },
                   ].map(s => (
                     <div key={s.label} style={{ background: "#0f1923", borderRadius: 6, padding: "8px 10px", borderLeft: `3px solid ${s.color}` }}>
-                      <div style={{ color: s.color, fontSize: 18, fontWeight: 500 }}>{s.count}</div>
+                      <div style={{ color: s.color, fontSize: 18, fontWeight: 500 }}>{s.count}/{s.total}</div>
                       <div style={{ color: "#4a6070", fontSize: 10 }}>{s.label}</div>
                     </div>
                   ))}
@@ -1064,26 +1072,13 @@ export default function MapPage() {
                   { color: "#E24B4A", label: "pUXO present — not cleared" },
                   { color: "#FB923C", label: "Assets present" },
                   { color: "#639922", label: "No significant geohazards" },
+                  { color: "#FB923C", opacity: 0.25, label: "pUXO exclusion zone" },
                 ].map(l => (
                   <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: l.color, flexShrink: 0 }}/>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: l.color, opacity: (l as any).opacity ?? 1, flexShrink: 0 }}/>
                     <span style={{ fontSize: 10, color: "#6b9ab8" }}>{l.label}</span>
                   </div>
                 ))}
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #1a2f42" }}>
-                  <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 6 }}>Documentation Status</div>
-                  {[
-                    { color: "#639922", label: "Final — all docs rev 01" },
-                    { color: "#378ADD", label: "IFR — client review (rev 00)" },
-                    { color: "#EF9F27", label: "Incomplete — docs missing revision" },
-                    { color: "#E24B4A", label: "Missing — docs not submitted" },
-                  ].map(l => (
-                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                      <div style={{ width: 12, height: 3, background: l.color, flexShrink: 0 }}/>
-                      <span style={{ fontSize: 10, color: "#6b9ab8" }}>{l.label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               {/* SZCZEGÓŁY WYBRANEGO PUNKTU */}
@@ -1100,19 +1095,27 @@ export default function MapPage() {
                   {/* Doc Status */}
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Dokumentacja</div>
-                    {[
-                      { label: "ALARP 1", value: alarpSelected.alarp_1, rev: alarpSelected.alarp1Rev },
-                      { label: "ALARP 2", value: alarpSelected.alarp_2, rev: alarpSelected.alarp2Rev },
-                      ...(alarpSelected.puxo > 0 ? [{ label: "TIR", value: alarpSelected.tir, rev: alarpSelected.tirRev }] : []),
-                    ].map(doc => {
-                      const color = doc.rev === "Final" ? "#639922" : doc.rev === "IFR" ? "#378ADD" : "#E24B4A"
-                      return (
-                        <div key={doc.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1a2f42" }}>
-                          <span style={{ fontSize: 11, color: "#6b9ab8" }}>{doc.label}</span>
-                          <span style={{ fontSize: 11, color, fontWeight: 500 }}>{doc.rev ?? "N/A"}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1a2f42" }}>
+                      <span style={{ fontSize: 11, color: "#6b9ab8" }}>Geophysical ALARP</span>
+                      <span style={{ fontSize: 11, color: alarpSelected.alarp1Issued ? "#a0b4c4" : "#4a6070", fontFamily: "monospace", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {alarpSelected.alarp_1 || "—"}
+                      </span>
+                    </div>
+                    {alarpSelected.puxoInBox && alarpSelected.puxoInBox.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ color: "#6b9ab8", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>
+                          UXO ALARP / TIR ({alarpSelected.tirsIssued}/{alarpSelected.tirsExpected})
                         </div>
-                      )
-                    })}
+                        {alarpSelected.puxoInBox.map((p: any) => (
+                          <div key={p.ID_pUXO} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid #1a2f42", gap: 8 }}>
+                            <span style={{ fontSize: 11, color: "#a0b4c4", fontFamily: "monospace", flexShrink: 0 }}>{p.ID_pUXO}</span>
+                            <span style={{ fontSize: 11, color: p.tir ? "#a0b4c4" : "#4a6070", fontFamily: "monospace", textAlign: "right" as const, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {p.tir || "(brak)"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Geohazardy */}
@@ -1139,35 +1142,30 @@ export default function MapPage() {
                         )
                       }
                       if (h.label === "Slope") {
-                        // Slope zależy od alarp_2 — jeśli brak, TBC
-                        const hasAlarp2 = !!alarpSelected.alarp_2
-                        if (!hasAlarp2) {
-                          return (
-                            <div key={h.label} style={{ marginBottom: 10 }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ fontSize: 11, color: "#a0b4c4" }}>Slope</span>
-                                <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>TBC</span>
-                              </div>
-                              <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #fff", overflow: "hidden" }}/>
-                            </div>
-                          )
-                        }
-                        const pct = h.risk ?? 100
-                        const color = pct >= 70 ? "#639922" : pct >= 40 ? "#EF9F27" : pct >= 20 ? "#FB923C" : "#E24B4A"
-                        const criterion = h.value === null || h.value <= 1 ? "≤1°" : h.value <= 2 ? "≤2°" : h.value <= 3 ? "≤3°" : h.value <= 4 ? "≤4°" : h.value <= 5 ? "≤5°" : ">5°"
                         return (
                           <div key={h.label} style={{ marginBottom: 10 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                               <span style={{ fontSize: 11, color: "#a0b4c4" }}>Slope</span>
-                              <span style={{ fontSize: 11, color, fontWeight: 500 }}>{criterion}</span>
+                              <span style={{ fontSize: 11, color: "#639922", fontWeight: 500 }}>≤1°</span>
                             </div>
                             <div style={{ height: 8, background: "#1a2f42", borderRadius: 4, overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, transition: "width 0.3s ease" }}/>
+                              <div style={{ height: "100%", width: "100%", background: "#639922", borderRadius: 4 }}/>
                             </div>
                           </div>
                         )
                       }
                       const hasHazard = (h.value ?? 0) > 0
+                      if (h.label === "Boulders" && (h.value === null || h.value === undefined || alarpSelected.sector === "Fish_tunnel")) {
+                        return (
+                          <div key={h.label} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, color: "#a0b4c4" }}>Boulders</span>
+                              <span style={{ fontSize: 11, color: "#4a6070", fontWeight: 500 }}>no data</span>
+                            </div>
+                            <div style={{ height: 8, background: "transparent", borderRadius: 4, border: "1px solid #fff", overflow: "hidden" }}/>
+                          </div>
+                        )
+                      }
                       // Jeśli ma risk score (Boulders/Assets) — użyj go
                       if (h.risk !== undefined && h.label !== "pUXO") {
                         const pct = h.risk
@@ -1210,7 +1208,6 @@ export default function MapPage() {
                   <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                     {visibleAlarpData.map(d => {
                       const riskColor = d.overallRisk === "white" ? "#ffffff" : d.overallRisk === "red" ? "#E24B4A" : d.overallRisk === "orange" ? "#FB923C" : "#639922"
-                      const docColor = d.docStatus === "Final" ? "#639922" : d.docStatus === "IFR" ? "#378ADD" : d.docStatus === "Incomplete" ? "#EF9F27" : "#E24B4A"
                       return (
                         <div key={d.id} onClick={() => {
                           setAlarpSelected(d)
@@ -1226,7 +1223,9 @@ export default function MapPage() {
                             <div style={{ fontSize: 11, color: "#c8dae8", fontWeight: 500 }}>{d.id}</div>
                             <div style={{ fontSize: 10, color: "#4a6070" }}>{d.type} · S{d.sector}</div>
                           </div>
-                          <span style={{ fontSize: 10, color: docColor, fontWeight: 500 }}>{d.docStatus}</span>
+                          <span style={{ fontSize: 10, color: (d.tirsExpected === 0) ? "#639922" : (d.tirsIssued === d.tirsExpected) ? "#639922" : (d.tirsIssued === 0) ? "#E24B4A" : "#EF9F27", fontWeight: 500 }}>
+                            {d.tirsExpected === 0 ? "UXO ALARP ✓" : `UXO ALARP ${d.tirsIssued}/${d.tirsExpected}`}
+                          </span>
                         </div>
                       )
                     })}

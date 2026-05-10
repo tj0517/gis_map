@@ -47,47 +47,34 @@ function getPuxoStatus(puxo: number, removed: number): "clear" | "partial" | "ha
   return "partial"
 }
 
-export function enrichRecord(r: FugroRecord) {
-  const alarp1Rev = getRevision(r.alarp_1)
-  const alarp2Rev = getRevision(r.alarp_2)
-  // TIR liczy się tylko gdy puxo > 0
-  const tirRev = r.puxo > 0 ? getRevision(r.tir) : null
+export interface PuxoInBox {
+  ID_pUXO: string
+  status: string | null
+  type: string | null
+  tir: string | null
+}
+
+export function enrichRecord(
+  r: FugroRecord,
+  puxoById: Map<string, { status: string; type: string; tir: string | null }>,
+  boxesBySite: Map<string, string[]>,
+) {
   const puxoStatus = getPuxoStatus(r.puxo, r.removed)
-
-  const isOnshore = r.sector?.toLowerCase() === "onshore"
-  const alarp2Required = !isOnshore
-
-  let docStatus: "Final" | "IFR" | "Incomplete" | "Missing"
-
-  if (isOnshore) {
-    // Onshore: tylko alarp_1 wymagane
-    if (alarp1Rev === "Final") {
-      const tirOk = r.puxo === 0 || tirRev === "Final" || tirRev === "IFR"
-      docStatus = !tirOk ? "Incomplete" : "Final"
-    } else if (alarp1Rev === "IFR") {
-      docStatus = "IFR"
-    } else {
-      docStatus = "Missing"
-    }
-  } else {
-    // Offshore: alarp_1 + alarp_2 wymagane
-    if (r.alarp_2 === null || alarp2Rev === "Missing") {
-      docStatus = "Missing"
-    } else if (alarp2Rev === "IFR") {
-      docStatus = "IFR"
-    } else if (alarp2Rev === "Final" && alarp1Rev === "Final") {
-      const tirOk = r.puxo === 0 || tirRev === "Final" || tirRev === "IFR"
-      if (!tirOk) {
-        docStatus = "Incomplete"
-      } else {
-        docStatus = "Final"
-      }
-    } else {
-      docStatus = "Incomplete"
-    }
-  }
-
   const slopeRisk = getSlopeRisk(r.slope)
+
+  const puxoIdsInBox = boxesBySite.get(r.id) ?? []
+  const puxoInBox: PuxoInBox[] = puxoIdsInBox.map(pid => {
+    const p = puxoById.get(pid)
+    return {
+      ID_pUXO: pid,
+      status: p?.status ?? null,
+      type: p?.type ?? null,
+      tir: p?.tir ?? null,
+    }
+  })
+  const alarp1Issued = !!(r.alarp_1 && String(r.alarp_1).trim() !== "")
+  const tirsExpected = puxoInBox.length
+  const tirsIssued = puxoInBox.filter(p => p.tir && String(p.tir).trim() !== "").length
 
   // Overall geohazard risk — hierarchia: white (no ALARP_1) > red (pUXO) > orange (assets) > green
   let overallRisk: "white" | "red" | "orange" | "green"
@@ -101,15 +88,16 @@ export function enrichRecord(r: FugroRecord) {
     overallRisk = "green"
   }
 
+  const { alarp_2, ...rest } = r
   return {
-    ...r,
-    alarp1Rev,
-    alarp2Rev,
-    tirRev,
+    ...rest,
     puxoStatus,
-    docStatus,
     slopeRisk,
     overallRisk,
+    puxoInBox,
+    alarp1Issued,
+    tirsExpected,
+    tirsIssued,
   }
 }
 
@@ -141,6 +129,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     )
     const boxes: Array<{ ID_pUXO: string; ID_2: string }> = await boxesRes.json()
+
+    const puxoById = new Map<string, { status: string; type: string; tir: string | null }>()
+    for (const f of puxoFeatures) {
+      puxoById.set(f.properties.id, {
+        status: f.properties.status,
+        type: f.properties.type,
+        tir: f.properties.tir,
+      })
+    }
+
+    const boxesBySite = new Map<string, string[]>()
+    for (const box of boxes) {
+      if (!box.ID_2) continue
+      if (!boxesBySite.has(box.ID_2)) boxesBySite.set(box.ID_2, [])
+      boxesBySite.get(box.ID_2)!.push(box.ID_pUXO)
+    }
 
     // 3. Aggregate removed count per geotechnical site
     const removedBySite = new Map<string, number>()
@@ -184,7 +188,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .filter(r => r.sector?.toLowerCase() !== "onshore")
       .map(r => {
       const [lng, lat] = proj4("EPSG:2180", "EPSG:4326", [r.xcoord, r.ycoord])
-      return { ...enrichRecord(r), lat, lng }
+      return { ...enrichRecord(r, puxoById, boxesBySite), lat, lng }
     })
 
     // Zapisz risk_slope do Supabase
