@@ -87,6 +87,23 @@ const SIMOPS_VESSELS = [
 
 const ZONE_OPTIONS = [0, 50, 100, 250, 500, 1000]
 
+type GeoDrillingResponse = {
+  type: "FeatureCollection"
+  features: any[]
+  meta: {
+    total: number
+    Planned: number
+    "In Progress": number
+    Completed: number
+    "On Hold": number
+    Aborted: number
+    priority1: number
+    overallCompletion: number
+    perScope: Array<{ scope: string; total: number; completed: number; inProgress: number; pending: number; completionPct: number; priority1: number; ncrStopWork: number }>
+    vessels: Array<{ name: string; mobStart: string | null; mobEnd: string | null; mobStatus: string; opsStart: string | null; opsEnd: string | null; opsStatus: string; demobStart: string | null; demobEnd: string | null; demobStatus: string; currentLocation: string | null; currentLng?: number; currentLat?: number }>
+  }
+}
+
 export default function MapPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -109,7 +126,30 @@ export default function MapPage() {
   const layerCorridorRef = useRef<any>(null)
   const [mapReady, setMapReady]         = useState(false)
   const [showVessels, setShowVessels]   = useState(false)
-  const [activeTab, setActiveTab] = useState<"uxo" | "weather" | "alarp">("uxo")
+  const [uxoVesselSettings, setUxoVesselSettings] = useState<Record<string, { visible: boolean, safetyZone: number, color: string }>>({
+    "Baltic Constructor": { visible: true, safetyZone: 500, color: "#378ADD" },
+    "WaveWalker 1":       { visible: true, safetyZone: 500, color: "#E24B4A" },
+    "Excalibur":          { visible: true, safetyZone: 500, color: "#639922" },
+  })
+  const uxoVesselMarkersRef = useRef<Record<string, any>>({})
+  const uxoVesselBuffersRef = useRef<Record<string, any>>({})
+  const [activeTab, setActiveTab] = useState<"uxo" | "weather" | "alarp" | "geo">("uxo")
+  const [geoData, setGeoData] = useState<GeoDrillingResponse | null>(null)
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoError, setGeoError] = useState<string | null>(null)
+  const [geoScopeFilters, setGeoScopeFilters] = useState<Set<string>>(new Set([
+    "SPT Boring", "CPT Sounding", "Continuous Core", "Marine MASW"
+  ]))
+  const [geoStatusFilters, setGeoStatusFilters] = useState<Set<string>>(new Set([
+    "Planned", "Completed", "In Progress", "On Hold", "Aborted"
+  ]))
+  const [geoVesselSettings, setGeoVesselSettings] = useState<Record<string, { visible: boolean, safetyZone: number, color: string }>>({
+    "Baltic Constructor": { visible: true, safetyZone: 500, color: "#378ADD" },
+    "WaveWalker 1":       { visible: true, safetyZone: 500, color: "#E24B4A" },
+    "Excalibur":          { visible: true, safetyZone: 500, color: "#639922" },
+  })
+  const [selectedGeoFeature, setSelectedGeoFeature] = useState<any>(null)
+  const [showAllGeoProps, setShowAllGeoProps] = useState(false)
   const [alarpData, setAlarpData] = useState<any[]>([])
   const [alarpLoading, setAlarpLoading] = useState(false)
   const [alarpError, setAlarpError] = useState<string | null>(null)
@@ -122,6 +162,14 @@ export default function MapPage() {
   const alarpMarkersRef = useRef<Map<string, any>>(new Map())
   const alarpPuxoBufferRef = useRef<any>(null)
   const alarpCablesBufferRef = useRef<any>(null)
+  const geoMapRef = useRef<any>(null)
+  const geoMarkersRef = useRef<any[]>([])
+  const geoVesselMarkersRef = useRef<Record<string, any>>({})
+  const geoVesselBuffersRef = useRef<Record<string, any>>({})
+  const geoLayerSectorsRef = useRef<any>(null)
+  const geoLayerCorridorRef = useRef<any>(null)
+  const geoLayerPuxoBufferRef = useRef<any>(null)
+  const geoLayerCablesBufferRef = useRef<any>(null)
   const [weatherTab, setWeatherTab] = useState<string>("geo3")
   const [weatherData, setWeatherData] = useState<Record<string, any[]>>({})
   const [weatherLoading, setWeatherLoading] = useState(false)
@@ -387,6 +435,26 @@ export default function MapPage() {
   }, [activeTab])
 
   useEffect(() => {
+    setGeoLoading(true)
+    setGeoError(null)
+    fetch("/api/geo-drilling")
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then((data: GeoDrillingResponse) => {
+        console.log("[GEO MAP] Fetched data:", { features: data.features.length, vessels: data.meta.vessels.length, perScope: data.meta.perScope.length })
+        setGeoData(data)
+        setGeoLoading(false)
+      })
+      .catch(err => {
+        console.error("[GEO MAP] Fetch error:", err)
+        setGeoError(err.message || "Failed to load GEO drilling data")
+        setGeoLoading(false)
+      })
+  }, [])
+
+  useEffect(() => {
     if (activeTab !== "alarp") return
     if (!L) return
     setTimeout(() => {
@@ -430,6 +498,330 @@ export default function MapPage() {
       alarpMapRef.current = map
     }, 100)
   }, [activeTab, L])
+
+  // GEO Map init
+  useEffect(() => {
+    if (activeTab !== "geo") return
+    if (!L) return
+
+    setTimeout(() => {
+      const container = document.getElementById("geo-map")
+      if (!container) return
+      if ((container as any)._leaflet_id) return
+
+      const map = L.map(container, { center: [54.84, 17.79], zoom: 13, zoomControl: true })
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors", maxZoom: 19,
+      }).addTo(map)
+      L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {
+        attribution: "© OpenSeaMap contributors", maxZoom: 18, opacity: 0.7,
+      }).addTo(map)
+
+      // Layer: UXO Sectors (re-use UXO geojson source independently)
+      fetch("/layers/UXO_Sectors.geojson").then(r => r.json()).then(data => {
+        const layer = L.geoJSON(data, {
+          style: { color: "#7a8a9b", weight: 1, fillColor: "#1a2530", fillOpacity: 0.15 },
+          interactive: false,
+        })
+        geoLayerSectorsRef.current = layer
+        layer.addTo(map)
+      }).catch(() => {})
+
+      // Layer: Clearance Corridor
+      fetch("/layers/Clearance_Corridor.geojson").then(r => r.json()).then(data => {
+        const layer = L.geoJSON(data, {
+          style: { color: "#F0A500", weight: 2, dashArray: "6,4", fillOpacity: 0, fillColor: "transparent" },
+          interactive: false,
+        })
+        geoLayerCorridorRef.current = layer
+        layer.addTo(map)
+      }).catch(() => {})
+
+      // Layer: pUXO 25m exclusion buffers
+      fetch("/layers/pUXO_25m_buffer.geojson").then(r => r.json()).then(data => {
+        const layer = L.geoJSON(data, {
+          style: { color: "#F0A500", weight: 1.5, dashArray: "4,3", fillColor: "#F0A500", fillOpacity: 0.12, opacity: 0.9 },
+          interactive: false,
+        })
+        geoLayerPuxoBufferRef.current = layer
+        layer.addTo(map)
+      }).catch(() => {})
+
+      // Layer: Cables 25m exclusion buffers (longitudinal cable corridors)
+      fetch("/layers/Cables_25m_buffer_ply.geojson").then(r => r.json()).then(data => {
+        const layer = L.geoJSON(data, {
+          style: { color: "#F0A500", weight: 1.5, dashArray: "4,3", fillColor: "#F0A500", fillOpacity: 0.12, opacity: 0.9 },
+          interactive: false,
+        })
+        geoLayerCablesBufferRef.current = layer
+        layer.addTo(map)
+      }).catch(() => {})
+
+      geoMapRef.current = map
+    }, 100)
+  }, [activeTab, L])
+
+  // GEO Map markers (re-render whenever geoData changes or map is ready)
+  useEffect(() => {
+    if (activeTab !== "geo") return
+    if (!geoMapRef.current) return
+    if (!geoData) return
+    if (!L) return
+
+    // Clear old markers
+    geoMarkersRef.current.forEach(m => geoMapRef.current.removeLayer(m))
+    geoMarkersRef.current = []
+
+    const createBoreholeIcon = (scope: string, status: string) => {
+      const statusColor = GEO_STATUS_COLORS[status] || "#fff"
+      const stroke = status === "Completed" ? "#444" : "#000"
+      let svgInner = ""
+      if (scope === "SPT Boring") {
+        svgInner = `<circle cx="8" cy="8" r="6" fill="${statusColor}" stroke="${stroke}" stroke-width="1.2"/>`
+      } else if (scope === "CPT Sounding") {
+        svgInner = `<polygon points="8,2 14,13 2,13" fill="${statusColor}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round"/>`
+      } else if (scope === "Continuous Core") {
+        svgInner = `<polygon points="8,2 14,8 8,14 2,8" fill="${statusColor}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round"/>`
+      } else {
+        svgInner = `<circle cx="8" cy="8" r="6" fill="${statusColor}" stroke="${stroke}" stroke-width="1.2"/>`
+      }
+      return L.divIcon({
+        className: "geo-shape-marker",
+        html: `<svg width="16" height="16" viewBox="0 0 16 16" style="display:block;">${svgInner}</svg>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      })
+    }
+
+    // Add new markers
+    geoData.features.forEach((f: any) => {
+      const [lng, lat] = f.geometry.coordinates
+      const status = f.properties.status || "Planned"
+      const scope = f.properties.scopeMethod || "Unknown"
+
+      // Apply filters
+      if (!geoScopeFilters.has(scope)) return
+      if (!geoStatusFilters.has(status)) return
+
+      const color = GEO_STATUS_COLORS[status] || "#888"
+      const isPlanned = status === "Planned"
+      const locationType = f.properties.locationType || "borehole"
+
+      let marker: any
+      if (locationType === "masw_line") {
+        // Square marker for MASW lines
+        const icon = L.divIcon({
+          className: "geo-masw-marker",
+          html: `<div style="width:12px;height:12px;background:${color};border:${isPlanned ? "1.5px solid #000" : `1px solid ${color}`};box-sizing:border-box;"></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+        })
+        marker = L.marker([lat, lng], { icon })
+        marker.on("click", () => setSelectedGeoFeature(f))
+      } else {
+        // Per-scope shape marker for boreholes
+        const icon = createBoreholeIcon(scope, status)
+        marker = L.marker([lat, lng], { icon })
+        marker.on("click", () => setSelectedGeoFeature(f))
+      }
+
+      marker.bindTooltip(`${f.properties.locationId} · ${f.properties.scopeMethod} · ${status}`, { direction: "top" })
+      marker.addTo(geoMapRef.current)
+      geoMarkersRef.current.push(marker)
+    })
+  }, [activeTab, geoData, L, geoScopeFilters, geoStatusFilters])
+
+  // GEO Map — Vessel markers and safety zones (multi-vessel, settings-driven)
+  useEffect(() => {
+    if (activeTab !== "geo") return
+    if (!geoMapRef.current || !L) return
+
+    // Clear all existing vessel markers and buffers
+    Object.values(geoVesselMarkersRef.current).forEach((m: any) => {
+      if (m) geoMapRef.current.removeLayer(m)
+    })
+    Object.values(geoVesselBuffersRef.current).forEach((b: any) => {
+      if (b) geoMapRef.current.removeLayer(b)
+    })
+    geoVesselMarkersRef.current = {}
+    geoVesselBuffersRef.current = {}
+
+    // Helper to render a vessel
+    const renderVessel = (name: string, lat: number, lng: number, settings: { color: string, safetyZone: number }, tooltipText: string) => {
+      const label = name === "Baltic Constructor" ? "BC" : name === "WaveWalker 1" ? "WW1" : name === "Excalibur" ? "EXC" : name.substring(0, 3).toUpperCase()
+
+      // Safety zone buffer
+      const buffer = L.circle([lat, lng], {
+        radius: settings.safetyZone,
+        color: settings.color,
+        weight: 1,
+        fillColor: settings.color,
+        fillOpacity: 0.12,
+        opacity: 0.5,
+        interactive: false,
+      })
+      buffer.addTo(geoMapRef.current)
+      geoVesselBuffersRef.current[name] = buffer
+
+      // Vessel marker
+      const icon = L.divIcon({
+        className: "geo-vessel-marker",
+        html: `<div style="
+          width:32px;height:32px;
+          background:${settings.color};
+          border:2px solid #fff;
+          border-radius:50%;
+          box-shadow:0 0 0 1px #000, 0 2px 4px rgba(0,0,0,0.4);
+          display:flex;align-items:center;justify-content:center;
+          font-size:10px;font-weight:700;color:#fff;
+          font-family:system-ui,-apple-system,sans-serif;
+        ">${label}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      })
+      const marker = L.marker([lat, lng], { icon, zIndexOffset: 1000 })
+      marker.bindTooltip(tooltipText, { direction: "top" })
+
+      // Click on WaveWalker 1 / Excalibur selects their underlying GEO site
+      // (these vessels operate from boreholes tracked in geoData)
+      if (name === "WaveWalker 1" || name === "Excalibur") {
+        marker.on("click", () => {
+          if (!geoData) return
+          const vessel = geoData.meta.vessels.find((v: any) => v.name === name)
+          if (vessel?.currentLocation) {
+            const f = geoData.features.find((f: any) => f.properties.locationId === vessel.currentLocation)
+            if (f) setSelectedGeoFeature(f)
+          }
+        })
+      }
+      // Baltic Constructor click: it operates from a UXO pUXO, not a GEO feature,
+      // so for now we leave it without a click handler (tooltip still works).
+
+      marker.addTo(geoMapRef.current)
+      geoVesselMarkersRef.current[name] = marker
+    }
+
+    // WaveWalker 1 — from geoData.meta.vessels
+    if (geoData) {
+      const ww1Settings = geoVesselSettings["WaveWalker 1"]
+      if (ww1Settings?.visible) {
+        const ww1 = geoData.meta.vessels.find((v: any) => v.name === "WaveWalker 1")
+        if (ww1?.currentLng != null && ww1?.currentLat != null) {
+          renderVessel("WaveWalker 1", ww1.currentLat, ww1.currentLng, ww1Settings, `WaveWalker 1 · Current: ${ww1.currentLocation || "—"} · Ops: ${ww1.opsStatus}`)
+        }
+      }
+
+      // Excalibur — from geoData.meta.vessels
+      const excSettings = geoVesselSettings["Excalibur"]
+      if (excSettings?.visible) {
+        const exc = geoData.meta.vessels.find((v: any) => v.name === "Excalibur")
+        if (exc?.currentLng != null && exc?.currentLat != null) {
+          renderVessel("Excalibur", exc.currentLat, exc.currentLng, excSettings, `Excalibur · Current: ${exc.currentLocation || "—"} · Ops: ${exc.opsStatus}`)
+        }
+      }
+    }
+
+    // Baltic Constructor — from UXO geojson state. UXO features have no `vessel` field;
+    // the "In progress" status uniquely identifies where BC is operating (UXO Map already
+    // treats In progress as the survey location and draws a 500m blue ring on it).
+    // Coordinates come from properties.north (latitude) and properties.east (longitude),
+    // not geometry.coordinates, to match how UXO Map reads positions.
+    const bcSettings = geoVesselSettings["Baltic Constructor"]
+    if (bcSettings?.visible && geojson) {
+      const inProgress: any = geojson.features.find((f: any) => f.properties.status === "In progress")
+      if (inProgress) {
+        const lat = inProgress.properties.north
+        const lng = inProgress.properties.east
+        renderVessel("Baltic Constructor", lat, lng, bcSettings, `Baltic Constructor · At: ${inProgress.properties.id || "—"}`)
+      }
+    }
+  }, [activeTab, geoData, geojson, L, geoVesselSettings])
+
+  // UXO Map — Vessel markers and safety zones
+  useEffect(() => {
+    if (activeTab !== "uxo") return
+    if (!mapRef.current || !L) return
+
+    // Clear existing UXO vessel markers and buffers
+    Object.values(uxoVesselMarkersRef.current).forEach((m: any) => {
+      if (m) mapRef.current.removeLayer(m)
+    })
+    Object.values(uxoVesselBuffersRef.current).forEach((b: any) => {
+      if (b) mapRef.current.removeLayer(b)
+    })
+    uxoVesselMarkersRef.current = {}
+    uxoVesselBuffersRef.current = {}
+
+    const renderUxoVessel = (name: string, lat: number, lng: number, settings: { color: string, safetyZone: number }, tooltipText: string) => {
+      const label = name === "Baltic Constructor" ? "BC" : name === "WaveWalker 1" ? "WW1" : name === "Excalibur" ? "EXC" : name.substring(0, 3).toUpperCase()
+
+      const buffer = L.circle([lat, lng], {
+        radius: settings.safetyZone,
+        color: settings.color,
+        weight: 1,
+        fillColor: settings.color,
+        fillOpacity: 0.12,
+        opacity: 0.5,
+        interactive: false,
+      })
+      buffer.addTo(mapRef.current)
+      uxoVesselBuffersRef.current[name] = buffer
+
+      const icon = L.divIcon({
+        className: "uxo-vessel-marker",
+        html: `<div style="
+          width:32px;height:32px;
+          background:${settings.color};
+          border:2px solid #fff;
+          border-radius:50%;
+          box-shadow:0 0 0 1px #000, 0 2px 4px rgba(0,0,0,0.4);
+          display:flex;align-items:center;justify-content:center;
+          font-size:10px;font-weight:700;color:#fff;
+          font-family:system-ui,-apple-system,sans-serif;
+        ">${label}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      })
+      const marker = L.marker([lat, lng], { icon, zIndexOffset: 1000 })
+      marker.bindTooltip(tooltipText, { direction: "top" })
+      marker.addTo(mapRef.current)
+      uxoVesselMarkersRef.current[name] = marker
+    }
+
+    // Baltic Constructor — from UXO geojson (In progress = current survey location)
+    const bcSettings = uxoVesselSettings["Baltic Constructor"]
+    if (bcSettings?.visible && geojson) {
+      const inProgress: any = geojson.features.find((f: any) => f.properties.status === "In progress")
+      if (inProgress) {
+        const lat = inProgress.properties.north
+        const lng = inProgress.properties.east
+        renderUxoVessel("Baltic Constructor", lat, lng, bcSettings, `Baltic Constructor · At: ${inProgress.properties.id || "—"}`)
+      }
+    }
+
+    // WaveWalker 1 — cross-tab from geoData.meta.vessels (SC2602 project but position is real geographic)
+    const ww1Settings = uxoVesselSettings["WaveWalker 1"]
+    if (ww1Settings?.visible && geoData) {
+      const ww1 = geoData.meta.vessels.find((v: any) => v.name === "WaveWalker 1")
+      if (ww1?.currentLng != null && ww1?.currentLat != null) {
+        renderUxoVessel("WaveWalker 1", ww1.currentLat, ww1.currentLng, ww1Settings, `WaveWalker 1 · Current: ${ww1.currentLocation || "—"} · Ops: ${ww1.opsStatus}`)
+      }
+    }
+
+    // Excalibur — cross-tab from geoData.meta.vessels (currently no coordinates assigned)
+    const excSettings = uxoVesselSettings["Excalibur"]
+    if (excSettings?.visible && geoData) {
+      const exc = geoData.meta.vessels.find((v: any) => v.name === "Excalibur")
+      if (exc?.currentLng != null && exc?.currentLat != null) {
+        renderUxoVessel("Excalibur", exc.currentLat, exc.currentLng, excSettings, `Excalibur · Current: ${exc.currentLocation || "—"} · Ops: ${exc.opsStatus}`)
+      }
+    }
+  }, [activeTab, geojson, geoData, L, uxoVesselSettings])
+
+  // Clear selected site when leaving GEO tab
+  useEffect(() => {
+    if (activeTab !== "geo") setSelectedGeoFeature(null)
+  }, [activeTab])
 
   useEffect(() => {
     if (!alarpMapRef.current || !L || alarpData.length === 0) return
@@ -618,33 +1010,8 @@ export default function MapPage() {
       marker.bindTooltip(id, { permanent: false, direction: "top", offset: [0, -12] })
       markersRef.current.set(id, marker)
       marker.addTo(mapRef.current)
-
-      if (status === "In progress") {
-        const circle = L.circle([north, east], { radius: 500, color: "#378ADD", weight: 1.5, opacity: 0.8, fillColor: "#378ADD", fillOpacity: 0 })
-        circle._uxoMarker = true
-        circle.addTo(mapRef.current)
-        const hatch = L.circle([north, east], { radius: 500, color: "transparent", weight: 0, fillOpacity: 0.4, fillColor: "#378ADD", className: "hatch-circle-" + id })
-        hatch._uxoMarker = true
-        hatch.addTo(mapRef.current)
-        hatch.on("add", () => {
-          const el = hatch.getElement()
-          if (!el) return
-          const svgRoot = el.closest("svg") || document.querySelector(".leaflet-overlay-pane svg")
-          if (!svgRoot) return
-          const defs = svgRoot.querySelector("defs") || svgRoot.insertBefore(document.createElementNS("http://www.w3.org/2000/svg", "defs"), svgRoot.firstChild)
-          const patId = "hatch-" + id
-          if (!svgRoot.querySelector("#" + patId)) {
-            const pat = document.createElementNS("http://www.w3.org/2000/svg", "pattern")
-            pat.setAttribute("id", patId); pat.setAttribute("patternUnits", "userSpaceOnUse")
-            pat.setAttribute("width", "10"); pat.setAttribute("height", "10"); pat.setAttribute("patternTransform", "rotate(45)")
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line")
-            line.setAttribute("x1", "0"); line.setAttribute("y1", "0"); line.setAttribute("x2", "0"); line.setAttribute("y2", "10")
-            line.setAttribute("stroke", "#378ADD"); line.setAttribute("stroke-width", "1.5"); line.setAttribute("stroke-opacity", "0.6")
-            pat.appendChild(line); defs.appendChild(pat)
-          }
-          el.setAttribute("fill", "url(#" + patId + ")"); el.setAttribute("fill-opacity", "0.4")
-        })
-      }
+      // NB: the "In progress" 500m safety buffer is now drawn by the UXO vessel
+      // renderer useEffect (editable radius via uxoVesselSettings), not here.
     }
 
     features.filter(f => f.properties.status !== "In progress").forEach(addMarker)
@@ -716,12 +1083,20 @@ export default function MapPage() {
             </div>
           </div>
           <div style={styles.topbarRight}>
-            {geojson && (
+            {activeTab === "uxo" && geojson && (
               <div style={styles.statRow}>
                 <StatBadge label="Total"     value={geojson.meta.total}     color="#378ADD"/>
                 <StatBadge label="Inspected" value={geojson.meta.inspected} color="#EF9F27"/>
                 <StatBadge label="Removed"   value={geojson.meta.removed}   color="#639922"/>
                 <StatBadge label="Pending"   value={geojson.meta.pending}   color="#E24B4A"/>
+              </div>
+            )}
+            {activeTab === "geo" && geoData && (
+              <div style={styles.statRow}>
+                <StatBadge label="Total"      value={geoData.meta.total}                                              color="#378ADD"/>
+                <StatBadge label="Completed"  value={geoData.meta.Completed}                                          color="#639922"/>
+                <StatBadge label="Planned"    value={geoData.meta.Planned}                                            color="#EF9F27"/>
+                <StatBadge label="Completion" value={`${(geoData.meta.overallCompletion * 100).toFixed(2)}%`}         color="#E24B4A"/>
               </div>
             )}
             <button onClick={fetchData} style={styles.refreshBtn} title="Odśwież dane">↻</button>
@@ -734,13 +1109,13 @@ export default function MapPage() {
 
         {/* TABS */}
         <div style={{ display: "flex", borderBottom: "1px solid #1e2f3e", background: "#0f1923", flexShrink: 0 }}>
-          {(["uxo", "weather", "alarp"] as const).map(tab => (
+          {(["uxo", "weather", "alarp", "geo"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               background: "none", border: "none", borderBottom: activeTab === tab ? "2px solid #378ADD" : "2px solid transparent",
               color: activeTab === tab ? "#fff" : "#4a6070", cursor: "pointer", fontSize: 12, fontWeight: 500,
               padding: "8px 20px", letterSpacing: "0.05em", textTransform: "uppercase" as const,
             }}>
-              {tab === "uxo" ? "🗺 UXO Mapa" : tab === "weather" ? "🌊 Prognoza" : "⚠️ ALARP Map"}
+              {tab === "uxo" ? "🗺 UXO Mapa" : tab === "weather" ? "🌊 Prognoza" : tab === "alarp" ? "⚠️ ALARP Map" : "🛢 GEO Map"}
             </button>
           ))}
         </div>
@@ -902,6 +1277,64 @@ export default function MapPage() {
               </button>
             </div>
 
+            {/* VESSELS section — Safety Zone editor */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 10, textTransform: "uppercase" as const }}>Vessels (Safety Zone)</div>
+              {(["Baltic Constructor", "WaveWalker 1", "Excalibur"] as const).map(vesselName => {
+                const settings = uxoVesselSettings[vesselName]
+                if (!settings) return null
+                return (
+                  <div key={vesselName} style={{ padding: "6px 0", opacity: settings.visible ? 1 : 0.5, borderBottom: "1px solid #1a2530" }}>
+                    {/* Row 1: checkbox + color dot + vessel name */}
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginBottom: 4 }}>
+                      <input
+                        type="checkbox"
+                        checked={settings.visible}
+                        onChange={() => {
+                          setUxoVesselSettings(prev => ({
+                            ...prev,
+                            [vesselName]: { ...prev[vesselName], visible: !prev[vesselName].visible }
+                          }))
+                        }}
+                        style={{ accentColor: settings.color }}
+                      />
+                      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: settings.color, flexShrink: 0 }}/>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: "#cdd6df" }}>{vesselName}</span>
+                    </label>
+                    {/* Row 2: safety zone input */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 22 }}>
+                      <span style={{ fontSize: 10, color: "#7a8a9b" }}>Safety Zone:</span>
+                      <input
+                        type="number"
+                        value={settings.safetyZone}
+                        min={0}
+                        max={5000}
+                        step={50}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10) || 0
+                          setUxoVesselSettings(prev => ({
+                            ...prev,
+                            [vesselName]: { ...prev[vesselName], safetyZone: value }
+                          }))
+                        }}
+                        style={{
+                          width: 60,
+                          padding: "2px 5px",
+                          background: "#0a0e14",
+                          border: "1px solid #1e2f3e",
+                          color: "#cdd6df",
+                          fontSize: 11,
+                          textAlign: "right" as const,
+                          borderRadius: 3,
+                        }}
+                      />
+                      <span style={{ fontSize: 10, color: "#7a8a9b" }}>m</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
             {lastRefresh && <div style={styles.refreshInfo}>Dane z: {lastRefresh.toLocaleTimeString("pl-PL")}</div>}
           </div>
 
@@ -950,8 +1383,8 @@ export default function MapPage() {
                 <DetailRow label="ID Mag"     value={selected.properties.idMag}/>
                 <DetailRow label="Inspected"  value={selected.properties.dateInspected ?? "—"}/>
                 <DetailRow label="UXO ALARP (TIR)" value={(selected.properties as any).tir ?? "—"}/>
-                <DetailRow label="East"       value={selected.properties.east.toFixed(2)}/>
-                <DetailRow label="North"      value={selected.properties.north.toFixed(2)}/>
+                <DetailRow label="Longitude"  value={`${selected.properties.east.toFixed(5)}°`}/>
+                <DetailRow label="Latitude"   value={`${selected.properties.north.toFixed(5)}°`}/>
               </div>
               {selected.properties.comment && (
                 <div style={styles.comment}>
@@ -1514,12 +1947,310 @@ export default function MapPage() {
           </div>
         )}
 
+        {activeTab === "geo" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "row" as const, height: "100%", background: "#0a0e14" }}>
+            {/* LEFT PANEL — Filters and Vessels */}
+            <div style={{ width: 280, minWidth: 280, background: "#0f1923", borderRight: "1px solid #1e2f3e", overflowY: "auto" as const, padding: 16, color: "#cdd6df", fontSize: 12 }}>
+
+              {/* SCOPE / METHOD section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 10, textTransform: "uppercase" as const }}>Scope / Method</div>
+                {geoData && (["SPT Boring", "CPT Sounding", "Continuous Core", "Marine MASW"] as const).map(scope => {
+                  const scopeMeta = geoData.meta.perScope.find((p: any) => p.scope === scope)
+                  const count = scopeMeta?.total ?? 0
+                  const completed = scopeMeta?.completed ?? 0
+                  const pct = count > 0 ? (completed / count) * 100 : 0
+                  const checked = geoScopeFilters.has(scope)
+                  const barColor = pct === 0 ? "#374151" : pct < 50 ? "#F0A500" : pct < 100 ? "#A3C037" : "#639922"
+                  return (
+                    <div key={scope} style={{ marginBottom: 10, opacity: checked ? 1 : 0.5 }}>
+                      <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "3px 0", cursor: "pointer" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const next = new Set(geoScopeFilters)
+                              if (checked) next.delete(scope); else next.add(scope)
+                              setGeoScopeFilters(next)
+                            }}
+                            style={{ accentColor: "#378ADD" }}
+                          />
+                          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <svg width="12" height="12" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
+                              {scope === "SPT Boring" && <circle cx="8" cy="8" r="5.5" fill="#fff" stroke="#000" strokeWidth="1"/>}
+                              {scope === "CPT Sounding" && <polygon points="8,2 14,13 2,13" fill="#fff" stroke="#000" strokeWidth="1" strokeLinejoin="round"/>}
+                              {scope === "Continuous Core" && <polygon points="8,2 14,8 8,14 2,8" fill="#fff" stroke="#000" strokeWidth="1" strokeLinejoin="round"/>}
+                              {scope === "Marine MASW" && <rect x="2.5" y="2.5" width="11" height="11" fill="#fff" stroke="#000" strokeWidth="1"/>}
+                            </svg>
+                            <span>{scope}</span>
+                          </span>
+                        </span>
+                        <span style={{ color: "#7a8a9b", fontSize: 11 }}>{count}</span>
+                      </label>
+                      <div style={{ marginTop: 4, marginLeft: 24 }}>
+                        <div style={{ position: "relative" as const, height: 14, background: "#1a2530", borderRadius: 3, overflow: "hidden" as const }}>
+                          <div style={{ position: "absolute" as const, left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, transition: "width 0.3s" }}/>
+                          <div style={{ position: "absolute" as const, left: 0, right: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: pct > 50 ? "#0a0e14" : "#cdd6df" }}>
+                            {completed}/{count} · {pct.toFixed(0)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* STATUS section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 10, textTransform: "uppercase" as const }}>Status</div>
+                {geoData && (["Planned", "Completed", "In Progress", "On Hold", "Aborted"] as const).map(status => {
+                  const count = geoData.meta[status as keyof typeof geoData.meta] as number ?? 0
+                  const checked = geoStatusFilters.has(status)
+                  const dotColor = status === "Completed" ? "#639922" : status === "In Progress" ? "#F0A500" : status === "Planned" ? "#fff" : status === "On Hold" ? "#EF9F27" : "#E24B4A"
+                  return (
+                    <label key={status} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", cursor: "pointer", opacity: checked ? 1 : 0.5 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = new Set(geoStatusFilters)
+                            if (checked) next.delete(status); else next.add(status)
+                            setGeoStatusFilters(next)
+                          }}
+                          style={{ accentColor: "#378ADD" }}
+                        />
+                        <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: dotColor, border: status === "Planned" ? "1px solid #000" : "none" }}/>
+                        <span>{status}</span>
+                      </span>
+                      <span style={{ color: "#7a8a9b", fontSize: 11 }}>{count}</span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              {/* VESSELS section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 10, textTransform: "uppercase" as const }}>Vessels (Safety Zone)</div>
+                {(["Baltic Constructor", "WaveWalker 1", "Excalibur"] as const).map(vesselName => {
+                  const settings = geoVesselSettings[vesselName]
+                  if (!settings) return null
+                  return (
+                    <div key={vesselName} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", opacity: settings.visible ? 1 : 0.5 }}>
+                      <input
+                        type="checkbox"
+                        checked={settings.visible}
+                        onChange={() => {
+                          setGeoVesselSettings(prev => ({
+                            ...prev,
+                            [vesselName]: { ...prev[vesselName], visible: !prev[vesselName].visible }
+                          }))
+                        }}
+                        style={{ accentColor: settings.color }}
+                      />
+                      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: settings.color, flexShrink: 0 }}/>
+                      <span style={{ flex: 1, fontSize: 11 }}>{vesselName}</span>
+                      <input
+                        type="number"
+                        value={settings.safetyZone}
+                        min={0}
+                        max={5000}
+                        step={50}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10) || 0
+                          setGeoVesselSettings(prev => ({
+                            ...prev,
+                            [vesselName]: { ...prev[vesselName], safetyZone: value }
+                          }))
+                        }}
+                        style={{
+                          width: 60,
+                          padding: "3px 5px",
+                          background: "#0a0e14",
+                          border: "1px solid #1e2f3e",
+                          color: "#cdd6df",
+                          fontSize: 11,
+                          textAlign: "right" as const,
+                          borderRadius: 3,
+                        }}
+                      />
+                      <span style={{ fontSize: 10, color: "#7a8a9b" }}>m</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+            </div>
+
+            {/* CENTER — Map */}
+            <div style={{ flex: 1, position: "relative" as const }}>
+              {geoLoading && (
+                <div style={{ position: "absolute" as const, top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1000, background: "rgba(15,25,35,0.9)", color: "#fff", padding: "12px 24px", borderRadius: 6, fontSize: 13 }}>
+                  Loading GEO drilling data…
+                </div>
+              )}
+              {geoError && (
+                <div style={{ position: "absolute" as const, top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1000, background: "rgba(15,25,35,0.9)", color: "#E24B4A", padding: "12px 24px", borderRadius: 6, fontSize: 13 }}>
+                  Error: {geoError}
+                </div>
+              )}
+              <div id="geo-map" style={{ width: "100%", height: "100%" }}/>
+            </div>
+
+            {/* RIGHT PANEL — Site Details */}
+            <div style={{ width: 320, minWidth: 320, background: "#0f1923", borderLeft: "1px solid #1e2f3e", overflowY: "auto" as const, padding: 16, color: "#cdd6df", fontSize: 12 }}>
+              {!selectedGeoFeature ? (
+                <>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 10, textTransform: "uppercase" as const }}>Site Details</div>
+                  <div style={{ color: "#4a6070", fontStyle: "italic" as const, fontSize: 11 }}>Click a site on the map to see details…</div>
+                </>
+              ) : (() => {
+                const p = selectedGeoFeature.properties
+                const statusColor = p.status === "Completed" ? "#639922" : p.status === "In Progress" ? "#F0A500" : p.status === "On Hold" ? "#EF9F27" : p.status === "Aborted" ? "#E24B4A" : "#fff"
+                const isMasw = p.locationType === "masw_line"
+                const pct = p.depthProgress && typeof p.depthProgress === "number" ? p.depthProgress * 100 : 0
+                const barColor = pct === 0 ? "#374151" : pct < 50 ? "#F0A500" : pct < 100 ? "#A3C037" : "#639922"
+                const fmt = (v: any) => v == null || v === "" ? "—" : v
+
+                return (
+                  <>
+                    {/* Header with close button */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{p.locationId}</div>
+                        <div style={{ fontSize: 11, color: "#7a8a9b", marginTop: 2 }}>{p.scopeMethod} · {isMasw ? "MASW Line" : "Borehole"}</div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedGeoFeature(null)}
+                        style={{ background: "transparent", border: "1px solid #1e2f3e", color: "#7a8a9b", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 7px", borderRadius: 3 }}
+                        title="Close"
+                      >×</button>
+                    </div>
+
+                    {/* STATUS */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Status</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: statusColor, border: p.status === "Planned" ? "1px solid #000" : "none" }}/>
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{p.status}</span>
+                      </div>
+                    </div>
+
+                    {/* PROGRESS */}
+                    {!isMasw && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Drilling Progress</div>
+                        <div style={{ position: "relative" as const, height: 18, background: "#1a2530", borderRadius: 3, overflow: "hidden" as const }}>
+                          <div style={{ position: "absolute" as const, left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, transition: "width 0.3s" }}/>
+                          <div style={{ position: "absolute" as const, left: 0, right: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: pct > 50 ? "#0a0e14" : "#cdd6df" }}>
+                            {p.achievedDepth != null ? `${p.achievedDepth} / ${p.plannedDepth} m · ${pct.toFixed(1)}%` : `Planned ${p.plannedDepth} m`}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LOCATION */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Location</div>
+                      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+                        <div><span style={{ color: "#7a8a9b" }}>Planned:</span> {fmt(p.north?.toFixed(5))}°N, {fmt(p.east?.toFixed(5))}°E</div>
+                        {(p.northFinal != null && p.eastFinal != null) && (
+                          <div><span style={{ color: "#7a8a9b" }}>Final:</span> {p.northFinal.toFixed(5)}°N, {p.eastFinal.toFixed(5)}°E</div>
+                        )}
+                        {p.seabedDepth != null && (
+                          <div><span style={{ color: "#7a8a9b" }}>Seabed:</span> {p.seabedDepth} m</div>
+                        )}
+                        {isMasw && p.lineLength != null && (
+                          <div><span style={{ color: "#7a8a9b" }}>Line length:</span> {p.lineLength} m</div>
+                        )}
+                        {isMasw && p.targetDepth != null && (
+                          <div><span style={{ color: "#7a8a9b" }}>Target depth:</span> {p.targetDepth} m</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* VESSEL & DATES */}
+                    {(p.vessel || p.dateStarted || p.dateCompleted) && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Vessel & Dates</div>
+                        <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+                          <div><span style={{ color: "#7a8a9b" }}>Vessel:</span> {fmt(p.vessel)}</div>
+                          <div><span style={{ color: "#7a8a9b" }}>Started:</span> {fmt(p.dateStarted)}</div>
+                          <div><span style={{ color: "#7a8a9b" }}>Completed:</span> {fmt(p.dateCompleted)}</div>
+                          {p.duration != null && p.duration > 0 && (
+                            <div><span style={{ color: "#7a8a9b" }}>Duration:</span> {p.duration} day{p.duration !== 1 ? "s" : ""}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* DRILLING DETAILS — only for boreholes */}
+                    {!isMasw && (p.refusal != null || p.samples) && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Drilling Details</div>
+                        <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+                          {p.refusal != null && <div><span style={{ color: "#7a8a9b" }}>Refusal:</span> {p.refusal}</div>}
+                          {p.samples && <div><span style={{ color: "#7a8a9b" }}>Samples:</span> <span style={{ wordBreak: "break-word" as const }}>{p.samples}</span></div>}
+                          {p.hseqFlag != null && p.hseqFlag !== 0 && (
+                            <div><span style={{ color: "#E24B4A", fontWeight: 600 }}>HSEQ Flag:</span> {p.hseqFlag}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OBSERVATIONS */}
+                    {p.observations && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Observations</div>
+                        <div style={{ fontSize: 11, lineHeight: 1.5, color: "#cdd6df", background: "#0a0e14", padding: 8, borderRadius: 3, border: "1px solid #1e2f3e", whiteSpace: "pre-wrap" as const }}>
+                          {p.observations}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PLANNED REMARKS */}
+                    {p.plannedRemarks && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 4, textTransform: "uppercase" as const }}>Planned Remarks</div>
+                        <div style={{ fontSize: 11, lineHeight: 1.5, color: "#cdd6df" }}>{p.plannedRemarks}</div>
+                      </div>
+                    )}
+
+                    {/* SHOW ALL PROPERTIES TOGGLE */}
+                    <div style={{ marginTop: 16, borderTop: "1px solid #1e2f3e", paddingTop: 12 }}>
+                      <button
+                        onClick={() => setShowAllGeoProps(prev => !prev)}
+                        style={{ width: "100%", background: "#1a2530", border: "1px solid #1e2f3e", color: "#cdd6df", padding: "6px 10px", borderRadius: 3, cursor: "pointer", fontSize: 11, fontWeight: 500, textAlign: "left" as const, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span>Show all properties</span>
+                        <span style={{ color: "#7a8a9b" }}>{showAllGeoProps ? "▼" : "▶"}</span>
+                      </button>
+                      {showAllGeoProps && (
+                        <div style={{ marginTop: 8, background: "#0a0e14", border: "1px solid #1e2f3e", borderRadius: 3, padding: 8, fontSize: 10, lineHeight: 1.6, fontFamily: "ui-monospace, monospace" as const, maxHeight: 300, overflowY: "auto" as const }}>
+                          {Object.entries(p).map(([key, value]) => (
+                            <div key={key} style={{ display: "flex", gap: 6, marginBottom: 3 }}>
+                              <span style={{ color: "#7a8a9b", minWidth: 110, flexShrink: 0 }}>{key}:</span>
+                              <span style={{ color: "#cdd6df", wordBreak: "break-word" as const }}>{value == null ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+
+          </div>
+        )}
+
       </div>
     </>
   )
 }
 
-function StatBadge({ label, value, color }: { label: string; value: number; color: string }) {
+function StatBadge({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{ fontSize: 18, fontWeight: 500, color }}>{value}</div>
@@ -1541,6 +2272,14 @@ const STATUS_COLORS: Record<string, string> = {
   pUXO:      "#E24B4A",
   Inspected: "#EF9F27",
   Removed:   "#639922",
+}
+
+const GEO_STATUS_COLORS: Record<string, string> = {
+  "Completed":   "#639922",
+  "In Progress": "#F0A500",
+  "Planned":     "#FFFFFF",
+  "On Hold":     "#EF9F27",
+  "Aborted":     "#E24B4A",
 }
 
 const styles: Record<string, any> = {
