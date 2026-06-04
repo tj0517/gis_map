@@ -137,6 +137,8 @@ export default function MapPage() {
   const [geoData, setGeoData] = useState<GeoDrillingResponse | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
+  const [geoMapReady, setGeoMapReady] = useState(false)
+  const [uxoMapReady, setUxoMapReady] = useState(false)
   const [geoScopeFilters, setGeoScopeFilters] = useState<Set<string>>(new Set([
     "SPT Boring", "CPT Sounding", "Continuous Core", "Marine MASW"
   ]))
@@ -238,8 +240,9 @@ export default function MapPage() {
       }).addTo(map)
       mapRef.current = map
       setMapReady(true)
+      setUxoMapReady(true)
     })
-    return () => { mapRef.current?.remove(); mapRef.current = null }
+    return () => { setUxoMapReady(false); mapRef.current?.remove(); mapRef.current = null }
   }, [status])
 
   useEffect(() => {
@@ -558,13 +561,15 @@ export default function MapPage() {
       }).catch(() => {})
 
       geoMapRef.current = map
+      setGeoMapReady(true)
     }, 100)
+    return () => { setGeoMapReady(false) }
   }, [activeTab, L])
 
   // GEO Map markers (re-render whenever geoData changes or map is ready)
   useEffect(() => {
     if (activeTab !== "geo") return
-    if (!geoMapRef.current) return
+    if (!geoMapReady || !geoMapRef.current) return
     if (!geoData) return
     if (!L) return
 
@@ -629,12 +634,12 @@ export default function MapPage() {
       marker.addTo(geoMapRef.current)
       geoMarkersRef.current.push(marker)
     })
-  }, [activeTab, geoData, L, geoScopeFilters, geoStatusFilters])
+  }, [activeTab, geoData, L, geoScopeFilters, geoStatusFilters, geoMapReady])
 
   // GEO Map — Vessel markers and safety zones (multi-vessel, settings-driven)
   useEffect(() => {
     if (activeTab !== "geo") return
-    if (!geoMapRef.current || !L) return
+    if (!geoMapReady || !geoMapRef.current || !L) return
 
     // Clear all existing vessel markers and buffers
     Object.values(geoVesselMarkersRef.current).forEach((m: any) => {
@@ -735,12 +740,12 @@ export default function MapPage() {
         renderVessel("Baltic Constructor", lat, lng, bcSettings, `Baltic Constructor · At: ${inProgress.properties.id || "—"}`)
       }
     }
-  }, [activeTab, geoData, geojson, L, geoVesselSettings])
+  }, [activeTab, geoData, geojson, L, geoVesselSettings, geoMapReady])
 
   // UXO Map — Vessel markers and safety zones
   useEffect(() => {
     if (activeTab !== "uxo") return
-    if (!mapRef.current || !L) return
+    if (!uxoMapReady || !mapRef.current || !L) return
 
     // Clear existing UXO vessel markers and buffers
     Object.values(uxoVesselMarkersRef.current).forEach((m: any) => {
@@ -816,7 +821,7 @@ export default function MapPage() {
         renderUxoVessel("Excalibur", exc.currentLat, exc.currentLng, excSettings, `Excalibur · Current: ${exc.currentLocation || "—"} · Ops: ${exc.opsStatus}`)
       }
     }
-  }, [activeTab, geojson, geoData, L, uxoVesselSettings])
+  }, [activeTab, geojson, geoData, L, uxoVesselSettings, uxoMapReady])
 
   // Clear selected site when leaving GEO tab
   useEffect(() => {
