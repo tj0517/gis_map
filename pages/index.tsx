@@ -152,6 +152,7 @@ export default function MapPage() {
   })
   const [selectedGeoFeature, setSelectedGeoFeature] = useState<any>(null)
   const [showAllGeoProps, setShowAllGeoProps] = useState(false)
+  const [geoSearchSelected, setGeoSearchSelected] = useState("")
   const [alarpData, setAlarpData] = useState<any[]>([])
   const [alarpLoading, setAlarpLoading] = useState(false)
   const [alarpError, setAlarpError] = useState<string | null>(null)
@@ -166,6 +167,7 @@ export default function MapPage() {
   const alarpCablesBufferRef = useRef<any>(null)
   const geoMapRef = useRef<any>(null)
   const geoMarkersRef = useRef<any[]>([])
+  const geoLabelRef = useRef<any>(null)
   const geoVesselMarkersRef = useRef<Record<string, any>>({})
   const geoVesselBuffersRef = useRef<Record<string, any>>({})
   const geoLayerSectorsRef = useRef<any>(null)
@@ -742,6 +744,34 @@ export default function MapPage() {
     }
   }, [activeTab, geoData, geojson, L, geoVesselSettings, geoMapReady])
 
+  // GEO Map — Permanent label for selected feature
+  useEffect(() => {
+    if (!geoMapReady || !geoMapRef.current || !L) return
+
+    // Clear previous label
+    if (geoLabelRef.current) {
+      geoMapRef.current.removeLayer(geoLabelRef.current)
+      geoLabelRef.current = null
+    }
+
+    // Add new label if a feature is selected
+    if (selectedGeoFeature && activeTab === "geo") {
+      const [lng, lat] = selectedGeoFeature.geometry.coordinates
+      const p = selectedGeoFeature.properties
+      const label = L.tooltip({
+        permanent: true,
+        direction: "top",
+        offset: [0, -10],
+        className: "geo-permanent-label",
+        interactive: false,
+      })
+      label.setLatLng([lat, lng])
+      label.setContent(`<strong>${p.locationId}</strong>_${p.status}`)
+      label.addTo(geoMapRef.current)
+      geoLabelRef.current = label
+    }
+  }, [selectedGeoFeature, activeTab, geoMapReady, L])
+
   // UXO Map — Vessel markers and safety zones
   useEffect(() => {
     if (activeTab !== "uxo") return
@@ -1074,6 +1104,20 @@ export default function MapPage() {
           .geojson-label { background: rgba(15,25,35,0.75); border: none; box-shadow: none; color: #a0b4c4; font-size: 11px; padding: 2px 5px; white-space: nowrap; }
           .leaflet-div-icon { background: transparent !important; border: none !important; box-shadow: none !important; width: auto !important; height: auto !important; }
           .vessel-tooltip { background: rgba(15,25,35,0.9) !important; border: 1px solid #378ADD !important; color: #c8dae8 !important; font-size: 11px !important; }
+          .leaflet-tooltip.geo-permanent-label {
+            background: rgba(15, 25, 35, 0.95);
+            color: #cdd6df;
+            border: 1px solid #378ADD;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-family: system-ui, -apple-system, sans-serif;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            white-space: nowrap;
+          }
+          .leaflet-tooltip.geo-permanent-label::before {
+            border-top-color: #378ADD;
+          }
         `}</style>
       </Head>
 
@@ -2033,6 +2077,50 @@ export default function MapPage() {
                     </label>
                   )
                 })}
+              </div>
+
+              {/* SEARCH POINT section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#7a8a9b", marginBottom: 10, textTransform: "uppercase" as const }}>Search Point</div>
+                <select
+                  value={geoSearchSelected}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    if (!id || !geoData) {
+                      setGeoSearchSelected("")
+                      return
+                    }
+                    const f = geoData.features.find((f: any) => f.properties.locationId === id)
+                    if (f) {
+                      const [lng, lat] = f.geometry.coordinates
+                      if (geoMapRef.current) {
+                        geoMapRef.current.setView([lat, lng], 17)
+                      }
+                      setSelectedGeoFeature(f)
+                    }
+                    setGeoSearchSelected("")  // Reset so user can re-select the same point
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "5px 8px",
+                    background: "#0a0e14",
+                    border: "1px solid #1e2f3e",
+                    color: "#cdd6df",
+                    fontSize: 11,
+                    borderRadius: 3,
+                    boxSizing: "border-box" as const,
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">— Select a point —</option>
+                  {geoData && [...geoData.features]
+                    .sort((a: any, b: any) => (a.properties.locationId || "").localeCompare(b.properties.locationId || ""))
+                    .map((f: any) => (
+                      <option key={f.properties.locationId} value={f.properties.locationId}>
+                        {f.properties.locationId}_{f.properties.status}
+                      </option>
+                    ))}
+                </select>
               </div>
 
               {/* VESSELS section */}
