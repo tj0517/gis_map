@@ -144,6 +144,23 @@ function excelDateToISO(raw: any): string | null {
   return String(raw)
 }
 
+const SCOPE_CANONICAL: Record<string, string> = {
+  "spt boring": "SPT Boring",
+  "cpt sounding": "CPT Sounding",
+  "continuous core": "Continuous Core",
+  "marine masw": "Marine MASW",
+  "optional spt": "Optional SPT",
+  "optional cc": "Optional CC",
+  "fish-return spt": "Fish-Return SPT",
+  "fish-return cpt": "Fish-Return CPT",
+}
+
+function normalizeScope(raw: string | null | undefined): string {
+  if (!raw) return "Unknown"
+  const key = String(raw).toLowerCase().trim()
+  return SCOPE_CANONICAL[key] || raw  // fallback to original if not in map
+}
+
 function parseDetail(workbook: XLSX.WorkBook): BoreholeFeature[] {
   const sheet = workbook.Sheets["DETAIL"]
   if (!sheet) throw new Error("Arkusz DETAIL nie został znaleziony")
@@ -185,7 +202,7 @@ function parseDetail(workbook: XLSX.WorkBook): BoreholeFeature[] {
       properties: {
         no:             row["No."]                       ?? 0,
         locationId:     String(row["LOCATION ID"]        ?? ""),
-        scopeMethod:    String(row["SCOPE / METHOD"]     ?? ""),
+        scopeMethod:    normalizeScope(row["SCOPE / METHOD"]),
         locationType:   "borehole",
         priority:       row["PRIORITY"]                  ?? 0,
         east:           lng,
@@ -305,7 +322,7 @@ function parseMasw(workbook: any): any[] {
       properties: {
         no: row[colMap.no],
         locationId: String(locationId),
-        scopeMethod: row[colMap.scopeMethod] || "Marine MASW",
+        scopeMethod: normalizeScope(row[colMap.scopeMethod] || "Marine MASW"),
         locationType: "masw_line",
         priority: row[colMap.priority] ?? 0,
         east: lng,
@@ -419,7 +436,7 @@ function parseSummary(workbook: XLSX.WorkBook, boreholes: BoreholeFeature[]): Su
     const r = rows[i]
     if (!r || !r[0]) continue
     perScope.push({
-      scope:         String(r[0]),
+      scope:         normalizeScope(String(r[0])),
       total:         Number(r[1]) || 0,
       completed:     Number(r[2]) || 0,
       inProgress:    Number(r[3]) || 0,
