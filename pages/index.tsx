@@ -16,6 +16,133 @@ function normalizeBoreholeType(type: string | null | undefined): string {
   return type
 }
 
+function exportPuxoToCSV(features: any[]): string {
+  if (!features || features.length === 0) return ""
+
+  // Headers match the right panel detail view (English, for QGIS/Excel compatibility)
+  const headers = [
+    "ID", "Sector", "Priority", "Status", "Type", "Risk",
+    "Depth_m", "FerrMass_kg", "Amplitude", "Altitude_m", "IDMag",
+    "Inspected", "TIR", "Longitude", "Latitude", "Comment"
+  ]
+
+  // Escape: wrap in quotes if contains comma, quote, or newline; double internal quotes
+  const escape = (v: any): string => {
+    if (v == null || v === "") return ""
+    const s = String(v)
+    if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+      return `"${s.replace(/"/g, '""')}"`
+    }
+    return s
+  }
+
+  const rows = features.map((f: any) => {
+    const p = f.properties || {}
+    return [
+      p.id,
+      p.sector,
+      p.priority,
+      p.status,
+      p.type,
+      p.risk,
+      p.depth,
+      p.ferrMass,
+      p.amplitude,
+      p.altitude,
+      p.idMag,
+      p.dateInspected,
+      p.tir,
+      p.east != null ? Number(p.east).toFixed(5) : "",
+      p.north != null ? Number(p.north).toFixed(5) : "",
+      p.comment,
+    ].map(escape).join(",")
+  })
+
+  // UTF-8 BOM for Excel compatibility with Polish characters in comments
+  const bom = "﻿"
+  return bom + headers.join(",") + "\n" + rows.join("\n")
+}
+
+function exportGeoToCSV(features: any[]): string {
+  if (!features || features.length === 0) return ""
+
+  const headers = [
+    "ID", "Scope", "LocationType", "Status", "Priority",
+    "Lng_Planned", "Lat_Planned", "Lng_Final", "Lat_Final",
+    "GroundElev", "SeabedDepth_m",
+    "PlannedDepth_m", "AchievedDepth_m", "Progress_pct",
+    "LineLength_m", "TargetDepth_m",
+    "Vessel", "DateStarted", "DateCompleted", "Duration_days",
+    "Samples", "Refusal", "HSEQFlag",
+    "PlannedRemarks", "Observations", "DeliverableRef"
+  ]
+
+  const escape = (v: any): string => {
+    if (v == null || v === "") return ""
+    const s = String(v)
+    if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+      return `"${s.replace(/"/g, '""')}"`
+    }
+    return s
+  }
+
+  const fmtCoord = (v: any) => v != null && !isNaN(Number(v)) ? Number(v).toFixed(6) : ""
+  const fmtPct = (v: any) => {
+    if (v == null || v === "") return ""
+    const n = Number(v)
+    if (isNaN(n)) return ""
+    return (n * 100).toFixed(2)
+  }
+
+  const rows = features.map((f: any) => {
+    const p = f.properties || {}
+    return [
+      p.locationId,
+      p.scopeMethod,
+      p.locationType,
+      p.status,
+      p.priority,
+      fmtCoord(p.east),         // Lng_Planned
+      fmtCoord(p.north),        // Lat_Planned
+      fmtCoord(p.eastFinal),    // Lng_Final
+      fmtCoord(p.northFinal),   // Lat_Final
+      p.groundElev,
+      p.seabedDepth,
+      p.plannedDepth,
+      p.achievedDepth,
+      fmtPct(p.depthProgress),
+      p.lineLength,             // MASW only — boreholes have ""
+      p.targetDepth,            // MASW only
+      p.vessel,
+      p.dateStarted,
+      p.dateCompleted,
+      p.duration,
+      p.samples,
+      p.refusal,
+      p.hseqFlag,
+      p.plannedRemarks,
+      p.observations,
+      p.deliverableRef,
+    ].map(escape).join(",")
+  })
+
+  const bom = "﻿"
+  return bom + headers.join(",") + "\n" + rows.join("\n")
+}
+
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  link.style.display = "none"
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 const WEATHER_LOCATIONS = [
   { id: "geo3",       label: "GEO3",              lat: 54.84,    lng: 17.79    },
   { id: "leba",       label: "Port Łeba",         lat: 54.78525, lng: 17.56319 },
@@ -1138,6 +1265,34 @@ export default function MapPage() {
                 <StatBadge label="Inspected" value={geojson.meta.inspected} color="#EF9F27"/>
                 <StatBadge label="Removed"   value={geojson.meta.removed}   color="#639922"/>
                 <StatBadge label="Pending"   value={geojson.meta.pending}   color="#E24B4A"/>
+                {activeTab === "uxo" && geojson && (
+                  <button
+                    onClick={() => {
+                      const csv = exportPuxoToCSV(geojson.features)
+                      const date = new Date().toISOString().split("T")[0]
+                      downloadCSV(csv, `UXO_pUXO_export_${date}.csv`)
+                    }}
+                    title={`Export ${geojson.features.length} pUXO points to CSV`}
+                    style={{
+                      marginLeft: 12,
+                      padding: "6px 12px",
+                      background: "#1a2530",
+                      border: "1px solid #378ADD",
+                      color: "#cdd6df",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 500,
+                      borderRadius: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#243340"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "#1a2530"}
+                  >
+                    📥 Export CSV ({geojson.features.length})
+                  </button>
+                )}
               </div>
             )}
             {activeTab === "geo" && geoData && (
@@ -1146,6 +1301,34 @@ export default function MapPage() {
                 <StatBadge label="Completed"  value={geoData.meta.Completed}                                          color="#639922"/>
                 <StatBadge label="Planned"    value={geoData.meta.Planned}                                            color="#EF9F27"/>
                 <StatBadge label="Completion" value={`${(geoData.meta.overallCompletion * 100).toFixed(2)}%`}         color="#E24B4A"/>
+                {activeTab === "geo" && geoData && (
+                  <button
+                    onClick={() => {
+                      const csv = exportGeoToCSV(geoData.features)
+                      const date = new Date().toISOString().split("T")[0]
+                      downloadCSV(csv, `GEO_drilling_export_${date}.csv`)
+                    }}
+                    title={`Export ${geoData.features.length} GEO points to CSV`}
+                    style={{
+                      marginLeft: 12,
+                      padding: "6px 12px",
+                      background: "#1a2530",
+                      border: "1px solid #378ADD",
+                      color: "#cdd6df",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 500,
+                      borderRadius: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#243340"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "#1a2530"}
+                  >
+                    📥 Export CSV ({geoData.features.length})
+                  </button>
+                )}
               </div>
             )}
             <button onClick={fetchData} style={styles.refreshBtn} title="Odśwież dane">↻</button>
