@@ -1153,6 +1153,9 @@ export default function MapPage() {
 
     const addMarker = (feature: UXOFeature) => {
       const { east, north, status, type, id } = feature.properties
+      // Skip: In progress pUXO is represented by the BC vessel circle instead.
+      // Standard marker is redundant and clashes visually.
+      if (status === "In progress") return
       const markerStyle = getMarkerStyle(status, type)
       const { iconUrl, size } = markerStyle
       const iconSize: [number, number] = [size, size]
@@ -1225,7 +1228,7 @@ export default function MapPage() {
   return (
     <>
       <Head>
-        <title>UXO WebGIS · SC2503 · SeaClouds</title>
+        <title>GEO3 Portal · SC2602</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
         <style>{`
           .geojson-label { background: rgba(15,25,35,0.75); border: none; box-shadow: none; color: #a0b4c4; font-size: 11px; padding: 2px 5px; white-space: nowrap; }
@@ -1254,8 +1257,8 @@ export default function MapPage() {
           <div style={styles.topbarLeft}>
             <img src="/SeaClouds_kolo.png" style={{ width: 28, height: 28, marginRight: 10, borderRadius: 4 }} />
             <div>
-              <div style={styles.topTitle}>UXO Phase 2 · WebGIS</div>
-              <div style={styles.topSub}>SC2503 · SeaClouds sp. z o.o.</div>
+              <div style={styles.topTitle}>GEO3 Offshore Operations Portal</div>
+              <div style={styles.topSub}>Project: SC2602 UXO&GEO Oversight</div>
             </div>
           </div>
           <div style={styles.topbarRight}>
@@ -1341,13 +1344,35 @@ export default function MapPage() {
 
         {/* TABS */}
         <div style={{ display: "flex", borderBottom: "1px solid #1e2f3e", background: "#0f1923", flexShrink: 0 }}>
-          {(["uxo", "weather", "alarp", "geo"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              background: "none", border: "none", borderBottom: activeTab === tab ? "2px solid #378ADD" : "2px solid transparent",
-              color: activeTab === tab ? "#fff" : "#4a6070", cursor: "pointer", fontSize: 12, fontWeight: 500,
-              padding: "8px 20px", letterSpacing: "0.05em", textTransform: "uppercase" as const,
-            }}>
-              {tab === "uxo" ? "🗺 UXO Mapa" : tab === "weather" ? "🌊 Prognoza" : tab === "alarp" ? "⚠️ ALARP Map" : "🛢 GEO Map"}
+          {([
+            { id: "uxo",     emoji: "💣", line1: "UXO",          line2: "Inspection" },
+            { id: "weather", emoji: "🌤️", line1: "Weather",      line2: "Assessment" },
+            { id: "alarp",   emoji: "⚖️", line1: "ALARP",        line2: "Assessment" },
+            { id: "geo",     emoji: "🌍", line1: "Geotechnical", line2: "Investigations" },
+          ] as const).map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+              padding: "8px 14px",
+              minWidth: 120,
+              background: activeTab === tab.id ? "#243340" : "transparent",
+              color: activeTab === tab.id ? "#fff" : "#7a8a9b",
+              borderTop: "none",
+              borderLeft: "none",
+              borderRight: "none",
+              borderBottom: activeTab === tab.id ? "2px solid #378ADD" : "2px solid transparent",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column" as const,
+              alignItems: "center",
+              gap: 2,
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              transition: "all 0.15s",
+            }}
+              onMouseEnter={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = "#cdd6df" }}
+              onMouseLeave={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = "#7a8a9b" }}
+            >
+              <div style={{ fontSize: 18, lineHeight: 1 }}>{tab.emoji}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tab.line1}</div>
+              <div style={{ fontSize: 11, fontWeight: 400, lineHeight: 1.2, opacity: 0.85 }}>{tab.line2}</div>
             </button>
           ))}
         </div>
@@ -1515,6 +1540,10 @@ export default function MapPage() {
               {(["Baltic Constructor", "WaveWalker 1", "Excalibur"] as const).map(vesselName => {
                 const settings = uxoVesselSettings[vesselName]
                 if (!settings) return null
+                const shortLabel = vesselName === "Baltic Constructor" ? "BC"
+                                 : vesselName === "WaveWalker 1" ? "WW1"
+                                 : vesselName === "Excalibur" ? "Exc"
+                                 : vesselName
                 return (
                   <div key={vesselName} style={{ padding: "6px 0", opacity: settings.visible ? 1 : 0.5, borderBottom: "1px solid #1a2530" }}>
                     {/* Row 1: checkbox + color dot + vessel name */}
@@ -1531,7 +1560,7 @@ export default function MapPage() {
                         style={{ accentColor: settings.color }}
                       />
                       <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: settings.color, flexShrink: 0 }}/>
-                      <span style={{ fontSize: 11, fontWeight: 500, color: "#cdd6df" }}>{vesselName}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: "#cdd6df" }}>{shortLabel}</span>
                     </label>
                     {/* Row 2: safety zone input */}
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 22 }}>
@@ -2312,6 +2341,10 @@ export default function MapPage() {
                 {(["Baltic Constructor", "WaveWalker 1", "Excalibur"] as const).map(vesselName => {
                   const settings = geoVesselSettings[vesselName]
                   if (!settings) return null
+                  const shortLabel = vesselName === "Baltic Constructor" ? "BC"
+                                   : vesselName === "WaveWalker 1" ? "WW1"
+                                   : vesselName === "Excalibur" ? "Exc"
+                                   : vesselName
                   return (
                     <div key={vesselName} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", opacity: settings.visible ? 1 : 0.5 }}>
                       <input
@@ -2326,7 +2359,7 @@ export default function MapPage() {
                         style={{ accentColor: settings.color }}
                       />
                       <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: settings.color, flexShrink: 0 }}/>
-                      <span style={{ flex: 1, fontSize: 11 }}>{vesselName}</span>
+                      <span style={{ flex: 1, fontSize: 11 }}>{shortLabel}</span>
                       <input
                         type="number"
                         value={settings.safetyZone}
