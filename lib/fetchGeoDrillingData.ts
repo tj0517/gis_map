@@ -196,6 +196,14 @@ function parseDetail(workbook: XLSX.WorkBook): BoreholeFeature[] {
     if (statusLower === "aborted")     status = "Aborted"
     if (statusLower === "planned")     status = "Planned"
 
+    // Filter out ONSHORE features — offshore campaign only.
+    // Excel column H (PLANNED REMARKS) marks these as "...ONSHORE..." (e.g. CC-721-33/34/35).
+    // Detection: any occurrence of "onshore" (case-insensitive) in plannedRemarks skips the row.
+    const plannedRemarks = row["PLANNED REMARKS"] ?? null
+    if (plannedRemarks && /onshore/i.test(String(plannedRemarks))) {
+      continue
+    }
+
     features.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: [lng, lat] },
